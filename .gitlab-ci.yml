@@ -1,0 +1,24 @@
+# .gitlab-ci.yml - Initial starting pipeline
+
+stages:
+  - lint
+  - test
+
+lint:python:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - pip install flake8 --quiet
+    - flake8 benchmark.py --max-line-length=100
+  only:
+    - merge_requests
+    - main
+
+test:run:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - python benchmark.py --self-test
+  only:
+    - merge_requests
+    - main
