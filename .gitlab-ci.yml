@@ -1,8 +1,8 @@
 # .gitlab-ci.yml - Initial starting pipeline
 
 stages:
-  -lint
-  -test
+  - lint
+  - test
 
 lint:python:
   stage: lint
