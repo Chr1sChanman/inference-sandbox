@@ -4,9 +4,9 @@ import argparse
 
 def time_reverse(text: str) -> dict:
     """Reverse the input string and return length, result, and duration."""
-    start = time.time()
+    start = time.perf_counter()
     output = text[::-1]
-    duration_ms = (time.time() - start) * 1000
+    duration_ms = (time.perf_counter() - start) * 1000
     return {
         "input_length": len(text),
         "output": output,
