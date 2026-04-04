@@ -68,7 +68,7 @@ def main():
         )
     save_csv(results, "results.csv")
     save_json(results, "results.json")
-    
+
 
 if __name__ == "__main__":
     main()
