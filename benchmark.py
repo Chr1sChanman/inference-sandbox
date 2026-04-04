@@ -15,6 +15,7 @@ def time_reverse(text: str) -> dict:
 
 
 def save_csv(results: list, path: str):
+    """Write results list to a CSV file at the given path."""
     with open(path, "w") as f:
         for result in results:
             f.write(f"{result['input_length']},{result['output']},{result['duration_ms']}\n")
@@ -35,18 +36,20 @@ def load_csv(path: str) -> list:
 
 
 def save_json(results: list, path: str):
+    """Write results list to a JSON file at the given path."""
     with open(path, "w") as f:
         json.dump(results, f, indent=2)
 
 
 def load_json(path: str) -> list:
+    """Load and return results list from a JSON file."""
     with open(path, "r") as f:
         return json.load(f)
 
 
 def main():
-    results = []
     """Run time_reverse on sample inputs and print a results table."""
+    results = []
     inputs = [
         "hi",
         "hello world",
