@@ -1,6 +1,7 @@
 import time
 import json
 
+
 def time_reverse(text: str) -> dict:
     """Reverse the input string and return length, result, and duration."""
     start = time.perf_counter()
@@ -12,10 +13,12 @@ def time_reverse(text: str) -> dict:
         "duration_ms": duration_ms,
     }
 
+
 def save_csv(results: list, path: str):
     with open(path, "w") as f:
         for result in results:
             f.write(f"{result['input_length']},{result['output']},{result['duration_ms']}\n")
+
 
 def load_csv(path: str) -> list:
     """Load CSV results and return typed dicts matching time_reverse output."""
@@ -30,13 +33,16 @@ def load_csv(path: str) -> list:
             })
         return rows
 
+
 def save_json(results: list, path: str):
     with open(path, "w") as f:
         json.dump(results, f, indent=2)
 
+
 def load_json(path: str) -> list:
     with open(path, "r") as f:
         return json.load(f)
+
 
 def main():
     results = []
@@ -59,7 +65,7 @@ def main():
         )
     save_csv(results, "results.csv")
     save_json(results, "results.json")
-
+    
 
 if __name__ == "__main__":
     main()

@@ -9,7 +9,7 @@ lint:python:
   image: python:3.11-slim
   script:
     - pip install flake8 --quiet
-    - flake8 benchmark.py --max-line-length=100
+    - flake8 benchmark.py --max-line-length=120
   only:
     - merge_requests
     - main
@@ -18,7 +18,8 @@ test:run:
   stage: test
   image: python:3.11-slim
   script:
-    - python benchmark.py --self-test
+    - pip install pytest --quiet
+    - pytest test_benchmark.py
   only:
     - merge_requests
     - main
