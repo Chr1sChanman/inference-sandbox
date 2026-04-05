@@ -15,10 +15,21 @@ docker image prune (-f)
 
 docker system prune
 
-docker build 
+docker build -t image-name . (will replace container with name)
 
 docker ps
 
 docker images
 
 docker run --rm container-name additional-cmds
+
+Title: <type>: <short imperative summary>
+
+Description: ## What
+Brief explanation of what changed.
+
+## Why
+The motivation or problem this solves.
+
+## How to Test
+Steps to verify the change works.
