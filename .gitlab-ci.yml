@@ -8,8 +8,8 @@ lint:python:
   stage: lint
   image: python:3.11-slim
   script:
-    - pip install flake8 --quiet
-    - flake8 benchmark.py --max-line-length=120
+    - pip install ruff --quiet
+    - ruff benchmark.py --max-line-length=120
   only:
     - merge_requests
     - main
