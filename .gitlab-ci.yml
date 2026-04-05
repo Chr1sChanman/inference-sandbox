@@ -9,7 +9,7 @@ lint:python:
   image: python:3.11-slim
   script:
     - pip install ruff --quiet
-    - ruff benchmark.py --max-line-length=120
+    - ruff check benchmark.py --max-line-length=120
   only:
     - merge_requests
     - main
