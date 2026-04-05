@@ -7,4 +7,6 @@ git branch -d branch/name
 
 git push origin --delete branch/name (if still exists after MR)
 
-git fetch --prune
+git fetch --prune or git remote prune origin
+
+git checkout -b branch/name
