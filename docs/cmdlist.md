@@ -13,8 +13,9 @@
 # Docker
 
 ## Building and Running Containers
-`docker build -t image-name .`
+`docker build --no-cache -t image-name .`
 - Will replace another container if given the same name
+- Tag (-t) lets you name the container instead of being assigned a random ID
 `docker run --rm container-name additional-cmds`
 - -rm is important in preventing old containers from taking up space
 Example of additional cmds: `docker run --rm inference-sandbox pytest test_benchmark.py`
@@ -25,6 +26,8 @@ Example of additional cmds: `docker run --rm inference-sandbox pytest test_bench
 
 ## Removing unused containers
 `docker image prune`
-- Add Force (-f) if needed
+- Add Force (-f) to skip confirmation prompt
 `docker system prune`
 - More extreme version of image prune
+`docker rmi image-name`
+- Removes specific image
