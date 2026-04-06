@@ -1,6 +1,7 @@
 import time
 import json
-
+import os
+import redis
 
 # Phase 2.2, checking docker caching behavior after adding comment
 def time_reverse(text: str) -> dict:
@@ -69,6 +70,8 @@ def main():
         )
     save_csv(results, "results.csv")
     save_json(results, "results.json")
+    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
+    client.rpush("benchmark:results", json.dumps(results))
 
 
 if __name__ == "__main__":
