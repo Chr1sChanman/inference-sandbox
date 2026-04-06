@@ -2,6 +2,7 @@ import time
 import json
 
 
+# Phase 2.2, checking docker caching behavior after adding comment
 def time_reverse(text: str) -> dict:
     """Reverse the input string and return length, result, and duration."""
     start = time.perf_counter()
