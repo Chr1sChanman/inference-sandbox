@@ -59,3 +59,22 @@ style — Formatting only — whitespace, semicolons, line length. Zero logic ch
 `style: fix trailing whitespace flagged by flake8`
 revert — Undoing a previous commit. Git generates this message automatically when you run git revert.
 `revert: feat(benchmark): add --engine flag (caused import error on CPU-only machines)`
+
+docker-compose.yml — a two-service stack
+services:
+  app:
+    build: .                          # Build image from local Dockerfile
+    ports:
+      - "8080:8080"                   # host:container port mapping
+    environment:
+      - REDIS_HOST=redis              # 'redis' resolves to the redis container
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./results:/app/results        # Bind mount: host directory into container
+    depends_on:
+      - redis                         # Don't start app until redis is up
+
+  redis:
+    image: redis:7-alpine             # Pull from Docker Hub, no build needed
+    ports:
+      - "6379:6379"

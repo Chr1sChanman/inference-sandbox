@@ -33,3 +33,13 @@ Example of additional cmds: `docker run --rm inference-sandbox pytest test_bench
 - More extreme version of image prune
 `docker rmi image-name`
 - Removes specific image
+
+# Docker Compose
+`docker compose up`
+- start everything
+`docker compose up --build`
+- rebuild images first
+`docker compose down`
+- stop and remove containers
+`docker compose logs app`
+- stream logs from the app service
