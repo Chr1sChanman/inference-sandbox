@@ -1,25 +1,33 @@
 # Phase 2
 
 ## What I Built This Week
-<!-- Describe the concrete output: what exists now that did not before? -->
+This week I built a single-stage, multi-stage, and a docker-compose to run benchmark.py, analyze the results pushed to Redis, and understand the caching behavior of the build process.
 
 ## What I Learned
-<!-- 3–5 key concepts, in your own words. Not copied. If you can't explain it, you don't know it yet. -->
+- Image size difference between single-stage and multi-stage
+- Caching behavior of the build process
+- How to build and push images to GitLab registry
+- How to use docker-compose to run benchmark.py and analyze the results
 
 ## What Confused Me (and how I resolved it)
-<!-- Specific confusion + specific resolution. "I was confused about X, then I did Y and it clicked." -->
+- What confused me was the difference between running a container with docker run vs docker compose run --rm app python filename.py args. I was able to resolve it by asking AI and looking at the docs, learning that Redis is a service that is used to store data in a key-value store and is used to store the results of the benchmark.
 
 ## What Surprised Me
-<!-- One thing that was different from what you expected. Good surprises and bad ones. -->
+- How easy it was to build and push images to GitLab registry
+- How easy it was to use docker-compose to run benchmark.py and analyze the results
 
 ## Open Questions
-<!-- Things you still don't understand. These become your questions for your internship manager. -->
+Maybe understanding why running on "6379" needs security credentials and maybe just in general security measures taken when running images/containers.
 
 ## Checkpoint Status
-<!-- Copy the checkpoint criteria from the phase. Mark each: [x] Done / [ ] Not yet -->
+- Build a single-stage dockerfile [x] Done / [ ] Not yet
+- Build a multi-stage dockerfile [x] Done / [ ] Not yet
+- Build a docker-compose file [x] Done / [ ] Not yet
+- Run benchmark.py and analyze the results [x] Done / [ ] Not yet
+- Push the image to GitLab registry [x] Done / [ ] Not yet
+- Understand the caching behavior of the build process [x] Done / [ ] Not yet
 
 ## Answers
-<!-- Answers to the questions asked at the end of each phase -->
 ### Phase 2.3
 As shown below from the CLI output, the multi-stage outputs a smaller file size than the single-stage
 ```
