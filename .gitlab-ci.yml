@@ -34,7 +34,7 @@ build-and-push:
     DOCKER_TLS_CERTDIR: "/certs"
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build -t $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA .
+    - docker build -f Dockerfile.multi -t $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA .
     - docker tag $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$CI_PROJECT_PATH:latest
     - docker push $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY/$CI_PROJECT_PATH:latest
