@@ -2,6 +2,7 @@ import time
 import json
 import os
 import redis
+import argparse
 
 # Phase 2.2, checking docker caching behavior after adding comment
 def time_reverse(text: str) -> dict:
@@ -50,6 +51,18 @@ def load_json(path: str) -> list:
 
 
 def main():
+    '''Argument parser for redis results dumping'''
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dump-results", action="store_true")
+    args = parser.parse_args()
+    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
+
+    if args.dump_results:
+        results = client.lrange("benchmark:results", 0, -1)
+        for result in results:
+            print(json.loads(result))
+        return
+    
     """Run time_reverse on sample inputs and print a results table."""
     results = []
     inputs = [
@@ -58,6 +71,7 @@ def main():
         "the quick brown fox jumps over the lazy dog",
     ]
 
+    '''Benchmarking'''
     print(f"{'Input Length':<15} {'Output':<50} {'Duration (ms)':<15}")
     print("-" * 80)
     for text in inputs:
@@ -70,7 +84,8 @@ def main():
         )
     save_csv(results, "results.csv")
     save_json(results, "results.json")
-    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
+
+    '''Redis results dumping'''
     client.rpush("benchmark:results", json.dumps(results))
 
 
