@@ -20,6 +20,14 @@
 
 ## Answers
 <!-- Answers to the questions asked at the end of each phase -->
+### Phase 2.3
+As shown below from the CLI output, the multi-stage outputs a smaller file size than the single-stage
+```
+(nvidia) cchan@ubuntu-cchan:~/code/inference-sandbox$ docker images
+REPOSITORY                 TAG                        IMAGE ID       CREATED              SIZE
+inference-sandbox-single   latest                     cacf2fb56536   About a minute ago   181MB
+inference-sandbox-multi    latest                     cb036c453886   2 minutes ago        151MB
+```
 
 ### Phase 2.2
 To put in my own words how caching behavior works, it caches up until the step that has changed, then rebuilding everything after. For example, the first run uses no cache as it is building fresh, but on the second run where we change benchmark.py, that step and the ones after all rerun as the change in the .py file could affect all subsequent runs. That's why when we add a blank line in requirements.txt and run the third build, it has to build fresh from the step where it copies the .txt file and everything after.
