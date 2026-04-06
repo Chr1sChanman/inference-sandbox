@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.multi
+    environment:
+      - REDIS_HOST=redis
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./results:/app/results
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

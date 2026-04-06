@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip && \
 
 COPY benchmark.py test_benchmark.py ./
 
+LABEL version="1.0" maintainer="Chanman"
+
 USER appuser
 
 CMD ["python", "benchmark.py"]
