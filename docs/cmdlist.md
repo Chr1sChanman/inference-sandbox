@@ -16,6 +16,8 @@
 `docker build --no-cache -t image-name .`
 - Will replace another container if given the same name
 - Tag (-t) lets you name the container instead of being assigned a random ID
+`docker build -f Dockerfile.name -t image-name .`
+- Used if you have multiple Dockerfiles
 `docker run --rm container-name additional-cmds`
 - -rm is important in preventing old containers from taking up space
 Example of additional cmds: `docker run --rm inference-sandbox pytest test_benchmark.py`
