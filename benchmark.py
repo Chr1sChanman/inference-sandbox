@@ -3,6 +3,23 @@ import json
 import os
 import redis
 import argparse
+import uvicorn
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class InferRequest(BaseModel):
+    text: str
+
+
+@app.post("/infer")
+def infer(request: InferRequest):
+    result = time_reverse(request.text)
+    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
+    client.rpush("benchmark:results", json.dumps(result))
+    return result
 
 # Phase 2.2, checking docker caching behavior after adding comment
 def time_reverse(text: str) -> dict:
@@ -54,7 +71,12 @@ def main():
     '''Argument parser for redis results dumping'''
     parser = argparse.ArgumentParser()
     parser.add_argument("--dump-results", action="store_true")
+    parser.add_argument("--serve", action="store_true")
     args = parser.parse_args()
+
+    if args.serve:
+        uvicorn.run(app, host="0.0.0.0", port=8080)
+        return
     client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
 
     if args.dump_results:
