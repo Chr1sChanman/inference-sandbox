@@ -3,3 +3,4 @@ pytest
 redis
 fastapi
 uvicorn
+kubernetes
