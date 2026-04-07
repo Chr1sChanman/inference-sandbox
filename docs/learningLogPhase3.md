@@ -39,6 +39,20 @@ ConfigMaps — config is separated from the image so the same image runs in dev/
 
 imagePullPolicy: Never — tells Kubernetes not to pull the image from a registry and use the local one instead. Needed in minikube because the image was built directly inside minikube's Docker daemon. Without it K8s would try to pull from Docker Hub, fail, and throw ErrImagePull
 
+ConfigMaps don't hot reload, so pods must be restarted with `kubectl rollout restart env-name` to pick up new values. This is because while model server images stay the same across dev/stage/prod, only the ConfigMap changes like different Redis host, log verbosity, batch size, model path, etc. This allows you to modify runtime behavior without re-building/deploying the image. It is also helps avoid hardcoding environment specific values into images that get promoted through a pipeline.
+
+When running `kubectl delete pod pod-name` on a Deployment, Kubernetes detects the pod is gone and the ReplicaSet controller automatically creates a replacement. This is called self-healing and means a single pod crash does not take down the service. Some status lines appear twice because kubectl get pods -w streams raw API watch events: any field change on the pod object emits a new event, and multiple fields can change in rapid succession while the visible STATUS column stays the same.
+```
+inference-sandbox-6bbf57bf8d-g9fwx   1/1     Terminating         0             31s
+inference-sandbox-6bbf57bf8d-g9fwx   1/1     Terminating         0             31s
+inference-sandbox-6bbf57bf8d-k7pv2   0/1     Pending             0             0s
+inference-sandbox-6bbf57bf8d-k7pv2   0/1     Pending             0             0s
+inference-sandbox-6bbf57bf8d-k7pv2   0/1     ContainerCreating   0             0s
+inference-sandbox-6bbf57bf8d-g9fwx   0/1     Completed           0             32s
+inference-sandbox-6bbf57bf8d-k7pv2   1/1     Running             0             2s
+inference-sandbox-6bbf57bf8d-g9fwx   0/1     Completed           0             33s
+inference-sandbox-6bbf57bf8d-g9fwx   0/1     Completed           0             33s
+```
 
 ## What Confused Me (and how I resolved it)
 <!-- Specific confusion + specific resolution. "I was confused about X, then I did Y and it clicked." -->
