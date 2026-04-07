@@ -8,6 +8,11 @@ This week I built a single-stage, multi-stage, and a docker-compose to run bench
 - Caching behavior of the build process
 - How to build and push images to GitLab registry
 - How to use docker-compose to run benchmark.py and analyze the results
+- NVIDIA CUDA base image types — three variants used in production:
+    - base (~200MB): CUDA runtime only, for apps that just need CUDA at runtime
+    - runtime (~1.5GB): CUDA + cuDNN runtime, for running pre-compiled models like TRT-LLM
+    - devel (~4GB): full compiler toolchain, for compiling from source. Multi-stage builds use devel to build then copy artifacts into runtime, keeping the final image lean
+- $CI_COMMIT_SHORT_SHA image tagging — in CI, images are tagged with the commit SHA instead of a static tag like v2. This means every commit produces a uniquely tagged image so you can always trace which code version an image was built from
 
 ## What Confused Me (and how I resolved it)
 - What confused me was the difference between running a container with docker run vs docker compose run --rm app python filename.py args. I was able to resolve it by asking AI and looking at the docs, learning that Redis is a service that is used to store data in a key-value store and is used to store the results of the benchmark.

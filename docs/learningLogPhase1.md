@@ -10,6 +10,9 @@
 - How to set up and config a basic .yml file
 - Validation/lint tools besides pytest
 - Surface OOP like decorators and function calling
+- Atomic commits — one logical change per commit so that if a bug is introduced, git log shows exactly which commit caused it. Committing save_results and load_results separately means a bug in load_results doesn't get buried inside an unrelated change
+- Protected branches — main is locked so nobody, including yourself, can push directly. Every change goes through an MR. This is exactly how NVIDIA operates so that no untested code reaches production
+- The --self-test flag pattern — shipping code with a built-in self-test is the SDET mindset. The CI job calls --self-test to verify the script works without needing a separate test file
 
 ## What Confused Me (and how I resolved it)
 Syntax naming, but that syntax writing in general is something I need to work on, I can think about the processs but need help when actually writing, will come with experience
