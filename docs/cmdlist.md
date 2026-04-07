@@ -100,3 +100,7 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
 `minikube version`
 > install minikube
+
+`eval $(minikube docker-env)`
+> Configs curr terminal's Docker to point at minikube's internal Docker daemon
+> Will need to rerun if opening up a new terminal
