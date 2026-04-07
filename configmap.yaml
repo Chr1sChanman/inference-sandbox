@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inference-config
+data:
+  redis-host: redis
+  log-level: DEBUG
