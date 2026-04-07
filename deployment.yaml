@@ -18,13 +18,14 @@ spec:
         - name: benchmark
           image: inference-sandbox:v2
           imagePullPolicy: Never
-          command: ["python", "benchmark.py"]
           env:
             - name: REDIS_HOST
               valueFrom:
                 configMapKeyRef:
                   name: inference-config
                   key: redis-host
+          ports:
+            - containerPort: 8080
           resources:
             requests:
               cpu: "250m"
