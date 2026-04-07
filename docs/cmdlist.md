@@ -121,6 +121,9 @@
 `kubectl delete deployment deployment-name`
 > Delete a deployment and its pods
 
+`kubectl delete pod pod-name`
+> Delete a specific pod (Deployment will automatically recreate it)
+
 `kubectl delete job job-name`
 > Delete a job and its pods
 
@@ -132,6 +135,19 @@
 
 `kubectl port-forward service/service-name local-port:service-port`
 > Forward a local port to a service inside the cluster (for local testing)
+
+`kubectl get deployments`
+> List all deployments in the default namespace
+
+`kubectl scale deployment deployment-name --replicas=N`
+> Scale a deployment to N replicas
+
+`kubectl exec pod-name -- command`
+> Run a command inside a running container
+> Example: `kubectl exec pod-name -- env | grep -E "REDIS|LOG"`
+
+`kubectl exec -it pod-name -- /bin/bash`
+> Open an interactive shell inside a running container
 
 ## Minikube
 
