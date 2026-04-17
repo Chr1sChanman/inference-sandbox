@@ -6,9 +6,11 @@ KV_cache ≈ num_parallel * num_ctx * bytes_per_token
 
 qwen3:0.6b - 28 layers, 8 KV heads, 128-d K/V = 112 KiB/token => 523MB + ~448MiB + overhead = ~1.1-1.6 GB
 qwen3:4b - 36 layers, 8 KV heads, 128-d K/V = 144 KiB/token => 2.6GB + ~576MiB + overhead = ~3.3-4.0 GB
-qwen3:0.6b - 36 layers, 8 KV heads, 128-d K/V = 144 KiB/token => 5.2GB + ~576MiB + overhead = ~5.8-6.6 GB
+qwen3:8b - 36 layers, 8 KV heads, 128-d K/V = 144 KiB/token => 5.2GB + ~576MiB + overhead = ~5.8-6.6 GB
 
-These expected VRAM numbers match the result listed for each model in ollama_results.jsonl as well as the decrease in throughput evaluated in the variable tokens_per_sec in which throughput decreases in relation to increasing model size.
+These expected VRAM numbers match the result listed for each model in ollama_results.jsonl. Throughput also decreases as model size increases when looking at `tokens_per_sec`, which matches the expected trend because larger models require more compute and memory bandwidth during generation.
+
+TTFT also trends higher on the larger models compared with the 0.6b baseline. In my runs, the average TTFT was about 4.99s for qwen3:0.6b, 11.87s for qwen3:4b, and 7.15s for qwen3:8b. That is not perfectly monotonic across every prompt, but the larger models still showed higher startup latency overall than the smallest model, while the throughput trend was cleaner and consistently lower as model size increased.
 
 Streaming a prompt through Ollama does not always happen in rigid "thinking, then content, then done" phases, but those are the main fields I observed while debugging. A streamed chat response arrives as a sequence of chunks. Some chunks may contain `thinking` text for models that expose reasoning, later chunks may contain `content` text for the visible answer, and the final chunk marks `done=True` and includes inference metadata.
 
