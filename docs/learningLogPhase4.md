@@ -1,3 +1,15 @@
+# Phase 4.1
+
+**VRAM Calculation**
+VRAM ≈ model_blob_size + KV_cache + runtime_overhead
+KV_cache ≈ num_parallel * num_ctx * bytes_per_token
+
+qwen3:0.6b - 28 layers, 8 KV heads, 128-d K/V = 112 KiB/token => 523MB + ~448MiB + overhead = ~1.1-1.6 GB
+qwen3:4b - 36 layers, 8 KV heads, 128-d K/V = 144 KiB/token => 2.6GB + ~576MiB + overhead = ~3.3-4.0 GB
+qwen3:0.6b - 36 layers, 8 KV heads, 128-d K/V = 144 KiB/token => 5.2GB + ~576MiB + overhead = ~5.8-6.6 GB
+
+These expected VRAM numbers match the result listed for each model in ollama_results.jsonl as well as the decrease in throughput evaluated in the variable tokens_per_sec in which throughput decreases in relation to increasing model size.
+
 Streaming a prompt through Ollama does not always happen in rigid "thinking, then content, then done" phases, but those are the main fields I observed while debugging. A streamed chat response arrives as a sequence of chunks. Some chunks may contain `thinking` text for models that expose reasoning, later chunks may contain `content` text for the visible answer, and the final chunk marks `done=True` and includes inference metadata.
 
 The key benchmarking concept is that TTFT should be measured from the moment the request starts until the first non-empty `message.content` arrives. I should not use the first `thinking` chunk for TTFT if I want "time to first visible answer token."
