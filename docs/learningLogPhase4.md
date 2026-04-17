@@ -43,3 +43,5 @@ In `benchmarks/ollama_bench.py`, I currently use these fields and definitions:
 - `vram_delta_mb`: change in GPU memory usage across the request.
 
 The big takeaway is that chunks are useful for detecting TTFT and understanding the stream structure, while the final Ollama metadata chunk is the better source for throughput-related metrics such as generated token count and generation duration.
+
+When measuring models in Ollama, make sure to stop any instances of if they are listed in `ollama ps` with `ollama stop [model]` as the SDK will reuse the model already loaded and break the clean baseline/measurement.
