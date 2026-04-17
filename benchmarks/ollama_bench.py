@@ -38,7 +38,7 @@ def run_one_prompt(model: str, prompt: str) -> dict:
     vram_before = get_vram_mb()
     start = time.perf_counter()
     first_token_time = None
-    full_text_parts = []
+    final_chunk = None
 
     stream = ollama.chat(
         model = model,
@@ -47,32 +47,37 @@ def run_one_prompt(model: str, prompt: str) -> dict:
     )
 
     for chunk in stream:
-        print(chunk)
-        text = chunk.get("message", {}).get("content", "")
-        if text and first_token_time is None:
+        final_chunk = chunk
+        # print(chunk) for seeing every chunk during model usage
+        content = chunk.message.content or ""
+        if content and first_token_time is None:
             first_token_time = time.perf_counter()
-        full_text_parts.append(text)
 
     end = time.perf_counter()
     vram_after = get_vram_mb()
 
-    output_text = "".join(full_text_parts)
-    output_tokens =  max(len(output_text.split()), 1)
-
     ttft_s = (first_token_time - start) if first_token_time else 0.0
     total_time_s = end - start
-    tokens_per_sec = output_tokens / total_time_s if total_time_s > 0 else 0.0
+
+    eval_count = final_chunk.eval_count if final_chunk and final_chunk.eval_count else 0
+    eval_duration_ns = final_chunk.eval_duration if final_chunk and final_chunk.eval_duration else 0
+    eval_duration_s = eval_duration_ns / 1_000_000_000 if eval_duration_ns else 0
+    tokens_per_sec = eval_count / eval_duration_s if eval_duration_s > 0 else 0.0
 
     return {
         "model": model,
         "prompt": prompt,
         "ttft_s": ttft_s,
         "total_time_s": total_time_s,
-        "output_tokens": output_tokens,
+        "generated_tokens": eval_count,
+        "eval_duration_s": eval_duration_s,
         "tokens_per_sec": tokens_per_sec,
         "vram_before_mb": vram_before,
         "vram_after_mb": vram_after,
         "vram_delta_mb": vram_after - vram_before,
+        "load_duration_s": (final_chunk.load_duration if final_chunk and final_chunk.load_duration else 0) / 1_000_000_000,
+        "prompt_tokens": final_chunk.prompt_eval_count if final_chunk and final_chunk.prompt_eval_count else 0,
+        "prompt_eval_duration_s": (final_chunk.prompt_eval_duration if final_chunk and final_chunk.prompt_eval_duration else 0) / 1_000_000_000,
     }
 
 def print_table(results: list[dict]) -> None:
@@ -84,7 +89,7 @@ def print_table(results: list[dict]) -> None:
     for row in results:
         print(
             f"{row['model']:<12} {row['ttft_s']:<10.3f} {row['total_time_s']:<10.3f} "
-            f"{row['output_tokens']:<8} {row['tokens_per_sec']:<10.3f} {row['vram_delta_mb']:<10}"
+            f"{row['generated_tokens']:<8} {row['tokens_per_sec']:<10.3f} {row['vram_delta_mb']:<10}"
         )
 
 def save_jsonl(results: list[dict], path: Path) -> None:
