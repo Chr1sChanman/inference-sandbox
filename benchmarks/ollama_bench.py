@@ -2,11 +2,9 @@ import json
 import subprocess
 import time
 from pathlib import Path
-
 import ollama
 
-# , "qwen3:4b", "qwen3:8b"
-MODELS = ["qwen3:0.6b"]
+MODELS = ["qwen3:0.6b", "qwen3:4b", "qwen3:8b"]
 PROMPTS = [
     "Explain what a GPU does in one paragraph.",
     "Write three bullet points about Docker.",
@@ -15,7 +13,7 @@ PROMPTS = [
     "Give a simple example of Python list slicing.",
 ]
 
-OUTPUT_PATH = Path("benchmarks/results/ollama_results.jsonl")
+OUTPUT_PATH = Path(__file__).resolve().parent / "results" / "ollama_results.jsonl"
 
 GPU_INDEX = 0
 STOP_BETWEEN_MODELS = True
