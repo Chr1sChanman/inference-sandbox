@@ -162,3 +162,49 @@
 
 `minikube status`
 > Check if the cluster and components are running
+
+# Ollama
+
+## Checking active settings
+
+`ollama ps`
+> Shows loaded models, processor split, and active `CONTEXT`
+> `CONTEXT` only appears when a model is currently loaded
+
+`ollama show model-name --parameters`
+> Shows model-specific parameters such as `temperature`, `top_k`, `top_p`, and `stop`
+> Does not show server-wide defaults like `OLLAMA_CONTEXT_LENGTH` or `OLLAMA_NUM_PARALLEL`
+
+`ollama show model-name --modelfile`
+> Shows the generated Modelfile for a pulled model
+> Useful for seeing model params layered into the image
+
+`systemctl show ollama --property=Environment,ExecStart,FragmentPath`
+> Shows how the Ollama service is started and any service-level environment variables
+
+`systemctl cat ollama`
+> Shows the service file and any drop-in overrides
+
+`env | rg '^OLLAMA_'`
+> Shows `OLLAMA_*` vars in the current shell
+> If Ollama runs as a systemd service, shell vars may differ from the actual server environment
+
+## Local notes for this machine
+
+`/etc/systemd/system/ollama.service`
+> Ollama is running as a systemd service
+> Service starts with `/usr/local/bin/ollama serve`
+
+`OLLAMA_CONTEXT_LENGTH`
+> No service-level override found for Qwen3 models
+> If no override is set, Ollama default is typically `4096`
+
+`OLLAMA_NUM_PARALLEL`
+> No service-level override found
+> If no override is set, Ollama default is typically `1`
+
+`qwen3:0.6b`, `qwen3:4b`, `qwen3:8b`
+> No model-specific `num_ctx` override found in their pulled manifests
+
+`nomic-embed-text`
+> Has a model-specific params blob with `{"num_ctx":8192}`
