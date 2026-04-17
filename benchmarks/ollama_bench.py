@@ -4,18 +4,14 @@ import time
 from pathlib import Path
 
 import ollama
-'''
-Models: , "qwen3:4b", "qwen3:8b"
-Prompts: 
-"Write three bullet points about Docker.",
+
+MODELS = ["qwen3:0.6b", "qwen3:4b", "qwen3:8b"]
+PROMPTS = [
+    "Explain what a GPU does in one paragraph.",
+    "Write three bullet points about Docker.",
     "What is TTFT in LLM benchmarking?",
     "Summarize the benefits of local inference.",
     "Give a simple example of Python list slicing.",
-'''
-MODELS = ["qwen3:0.6b"]
-PROMPTS = [
-    "Explain what a GPU does in one paragraph.",
-    
 ]
 
 OUTPUT_PATH = Path("benchmarks/ollama_results.jsonl")
@@ -158,18 +154,17 @@ def main() -> None:
         print(f"Idle GPU {GPU_INDEX} memory: {get_vram_mb()} MB\n")
 
     for model in MODELS:
-        
-        if STOP_BETWEEN_MODELS:
-            stop_model(model)
-            time.sleep(1)
-        
         for prompt in PROMPTS:
+            if STOP_BETWEEN_MODELS:
+                stop_model(model)
+                time.sleep(1)
+
             row = run_one_prompt(model, prompt)
             results.append(row)
-        
-        if STOP_BETWEEN_MODELS:
-            stop_model(model)
-            time.sleep(1)
+
+            if STOP_BETWEEN_MODELS:
+                stop_model(model)
+                time.sleep(1)
 
     print_table(results)
     save_jsonl(results, OUTPUT_PATH)
