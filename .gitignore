@@ -1,10 +1,10 @@
 /.pytest_cache/
 /.venv/
 /__pycache__/
-/results.csv
-/results.json
+/artifacts/
+/.ruff_cache/
+/src/__pycache__/
+/tests/__pycache__/
 .codex
-/benchmarks/__pycache__
-/tests/__pycache__
-/docs/NVIDIA_Phases1-3.pdf
-/docs/NVIDIA_Phases4-7.pdf
+/docs/reference/NVIDIA_Phases1-3.pdf
+/docs/reference/NVIDIA_Phases4-7.pdf

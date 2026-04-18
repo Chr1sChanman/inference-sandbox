@@ -2,3 +2,11 @@
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+markers = [
+  "integration: requires Ollama, local models, and NVIDIA GPU access",
+  "system: requires Kubernetes cluster access",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"

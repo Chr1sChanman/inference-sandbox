@@ -4,3 +4,5 @@ redis
 fastapi
 uvicorn
 kubernetes
+ollama
+pydantic
