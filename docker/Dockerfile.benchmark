@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN useradd --create-home appuser && chown appuser:appuser /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip && \
+    pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
+
+COPY src ./src
+ENV PYTHONPATH=/app/src
+
+LABEL version="1.0" maintainer="Chanman"
+
+USER appuser
+
+CMD ["python", "-m", "inference_sandbox.reverse_service"]
