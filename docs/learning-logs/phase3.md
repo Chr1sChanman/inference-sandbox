@@ -1,10 +1,10 @@
 # Phase 3
 
 ## What I Built This Week
-- deployment.yaml + service.yaml — deployed inference-sandbox to minikube with 2 replicas and a ClusterIP service
-- configmap.yaml — externalised REDIS_HOST and LOG_LEVEL so the same image runs with different config without rebuilding
-- Converted benchmark.py from a one-shot Job into a long-running FastAPI inference server with a /infer HTTP endpoint
-- k8s_test.py — a Python script using the Kubernetes client API that asserts at least 2 pods with label app=inference-sandbox are Running, prints PASS or FAIL, and uses no kubectl commands
+- `deploy/k8s/base/deployment.yaml` + `deploy/k8s/base/service.yaml` — deployed inference-sandbox to minikube with 2 replicas and a ClusterIP service
+- `deploy/k8s/base/configmap.yaml` — externalised `REDIS_HOST` and `LOG_LEVEL` so the same image runs with different config without rebuilding
+- Converted `src/inference_sandbox/reverse_service.py` from a one-shot benchmark runner into a long-running FastAPI inference server with a `/infer` HTTP endpoint
+- `tests/system/test_k8s_smoke.py` — a Python smoke test using the Kubernetes client API that asserts at least 2 pods with label `app=inference-sandbox` are `Running` and uses no `kubectl` parsing
 
 ## What I Learned
 The purpose of each software and what they're used for in development
@@ -28,7 +28,7 @@ docker compose up          docker build                    kubectl apply
 
 When using the command `minikube start` pods continuously run until manually stopped, the commands `kubectl get pods -w` and `minikube dashboard` are both ways to view status of pods
 
-The reason for 'replicas' in deployment.yaml is for fault tolerance and throughput where pods handle requests in parallel
+The reason for `replicas` in `deploy/k8s/base/deployment.yaml` is fault tolerance and throughput, where pods handle requests in parallel.
 
 'Job' types run to completion and exit with code 0 meaning success where K8 does not restart the service whereas with 'Deployment' types they are expected to run forever and any exit triggers a restart. Basically they tell k8 what "done" means
 
@@ -64,7 +64,7 @@ The Kubernetes Python client returns structured objects, not text. I expected it
 - The Kubernetes Python client returns typed objects instead of text. pod.status.phase is a field, not a string you parse from kubectl output — this is why it's more reliable in CI than shelling out to kubectl
 
 ## Open Questions
-- In production, how do SDET teams run k8s_test.py — is it triggered after every deployment in CI?
+- In production, how do SDET teams run `tests/system/test_k8s_smoke.py` — is it triggered after every deployment in CI?
 - What happens if a pod is in Running phase but the app inside is unhealthy — does K8s know? (Is that what readiness probes are for?)
 
 ## Checkpoint Status
@@ -81,12 +81,12 @@ The Kubernetes Python client returns structured objects, not text. I expected it
     — Separates config from the image so the same image runs in dev/staging/prod with different values. Avoids rebuilding on every config change.
 
 [x] Write a Python script that talks to K8s via the client library
-    — k8s_test.py uses kubernetes.client.CoreV1Api to list pods by label selector and assert minimum running replicas. No kubectl used.
+    — `tests/system/test_k8s_smoke.py` uses `kubernetes.client.CoreV1Api` to list pods by label selector and assert minimum running replicas. No `kubectl` parsing is used.
 
 ## Answers
-deployment.yaml tells Kubernetes how to run your app while service.yaml tells Kubernetes how to reach your app internally.
+`deploy/k8s/base/deployment.yaml` tells Kubernetes how to run your app while `deploy/k8s/base/service.yaml` tells Kubernetes how to reach your app internally.
 ClusterIP means only accessible inside cluster
 
-redis.yaml is a way to automatically run the CLI command `docker run -d --name redis redis:7-alpine -p 6379:6379`
+`deploy/k8s/base/redis.yaml` is a declarative way to run the equivalent of `docker run -d --name redis redis:7-alpine -p 6379:6379`
 
 Self-healing — when a pod is deleted manually or crashes, the ReplicaSet controller detects the count dropped below the desired replicas and creates a replacement automatically. In production this means a hardware fault on one node does not take down the inference service
