@@ -126,7 +126,7 @@ class HFBenchmark:
             )
 
         inputs = self.build_chat_inputs(prompt)
-        input_length = inputs["input_ids"].shape[1]
+        input_length = inputs["input_ids"].shape[1]     # pyright: ignore[reportAttributeAccessIssue]
 
         with torch.no_grad():
             output_ids = self.model.generate(  # pyright: ignore[reportAttributeAccessIssue]
