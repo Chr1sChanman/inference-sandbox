@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-import time
 from threading import Thread
 import subprocess
+import time
+import gc
 
 import torch
 import transformers
@@ -23,6 +24,15 @@ class BenchmarkConfig:
     gpu_index: int = 0
     max_new_tokens: int = 100
     dtype: torch.dtype = torch.float16
+
+    def with_dtype(self, dtype: torch.dtype) -> "BenchmarkConfig":
+        return BenchmarkConfig(
+            model_name=self.model_name,
+            prompts=list(self.prompts),
+            gpu_index=self.gpu_index,
+            max_new_tokens=self.max_new_tokens,
+            dtype=dtype,
+        )
 
 class HFBenchmark:
     def __init__(self, config: BenchmarkConfig) -> None:
@@ -123,6 +133,15 @@ class HFBenchmark:
         )
         self.model.to(self.get_device())    # pyright: ignore reportGeneralTypeIssues
         self.model.eval()
+    
+    def unload_components(self) -> None:
+        self.model = None
+        self.tokenizer = None
+        gc.collect()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
     
     def describe_loaded_objects(self) -> dict:
         if self.tokenizer is None or self.model is None:
@@ -377,6 +396,13 @@ class HFBenchmark:
         )
         print(f"Total generated tokens: {result['total_generated_tokens']}")
         print(f"Total wall time (s): {result['total_wall_time_s']:.4f}")
+
+DTYPES_TO_COMPARE = [
+    torch.float32,
+    torch.float16,
+    torch.bfloat16,
+]
+
 
 
 def main() -> None:
