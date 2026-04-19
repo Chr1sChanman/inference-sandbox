@@ -93,7 +93,54 @@ class HFBenchmark:
         print("-" * 40)
         for key, value in summary.items():
             print(f"{key}: {value}")
-    
+
+    def generate_one_response(self, prompt: str) -> dict:
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError(
+                "Tokenizer & model are not loaded. Fix funct load_components()."
+            )
+        
+        messages = [
+            {"role": "user", "content": prompt},
+        ]
+
+        inputs = self.tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        ).to(self.get_device())
+
+        input_length = inputs["input_ids"].shape[1]
+
+        with torch.no_grad():
+            output_ids = self.model.generate(
+                **inputs,
+                max_new_tokens=self.config.max_new_tokens,
+                do_sample=False,
+                pad_token_id=self.tokenizer.eos_token_id,
+            )
+        
+        generated_ids = output_ids[0][input_length:]
+        generated_text = self.tokenizer.decode(
+            generated_ids,
+            skip_special_tokens=True,
+        )
+
+        return {
+            "prompt": prompt,
+            "input_token_count": input_length,
+            "generated_token_count": int(generated_ids.shape[0]),
+            "generated_text": generated_text,
+        }
+    def print_generation_demo(self, prompt: str) -> None:
+        result = self.generate_one_response(prompt)
+        print("\nGeneration Demo")
+        print("-" * 40)
+        print(f"Prompt: {result['prompt']}")
+        print(f"Input tokens: {result['input_token_count']}")
+        print(f"Generated tokens: {result['generated_token_count']}")
+        print(f"Generated text:")
+        print(result["generated_text"])
 
 def main() -> None:
     config = BenchmarkConfig()
@@ -101,6 +148,7 @@ def main() -> None:
     benchmark.print_environment_summary()
     benchmark.load_components()
     benchmark.print_loaded_summary()
+    benchmark.print_generation_demo(config.prompts[0])
 
 if __name__ == "__main__":
     main()
