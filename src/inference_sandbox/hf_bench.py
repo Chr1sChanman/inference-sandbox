@@ -110,39 +110,31 @@ class HFBenchmark:
             {"role": "user", "content": prompt},
         ]
 
-        input_ids = self.tokenizer.apply_chat_template(
+        chat_inputs = self.tokenizer.apply_chat_template(
             messages,
             add_generation_prompt=True,
             return_tensors="pt",
         )
-        return input_ids.to(self.get_device())
+        chat_inputs = chat_inputs.to(self.get_device())
+        return chat_inputs["input_ids"]
 
     def generate_one_response(self, prompt: str) -> dict:
         if self.tokenizer is None or self.model is None:
             raise RuntimeError(
-                "Tokenizer & model are not loaded. Fix funct load_components()."
+                "Tokenizer and model are not loaded. Call load_components() first."
             )
-        
-        messages = [
-            {"role": "user", "content": prompt},
-        ]
 
-        inputs = self.tokenizer.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            return_tensors="pt",
-        ).to(self.get_device())
-
-        input_length = inputs["input_ids"].shape[1]
+        input_ids = self.build_chat_input_ids(prompt)
+        input_length = input_ids.shape[1]
 
         with torch.no_grad():
-            output_ids = self.model.generate(   # pyright: ignore reportAttributeAccessIssue
-                **inputs,
+            output_ids = self.model.generate(  # pyright: ignore[reportAttributeAccessIssue]
+                input_ids=input_ids,
                 max_new_tokens=self.config.max_new_tokens,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
-        
+
         generated_ids = output_ids[0][input_length:]
         generated_text = self.tokenizer.decode(
             generated_ids,
@@ -155,6 +147,8 @@ class HFBenchmark:
             "generated_token_count": int(generated_ids.shape[0]),
             "generated_text": generated_text,
         }
+
+    
     def print_generation_demo(self, prompt: str) -> None:
         result = self.generate_one_response(prompt)
         print("\nGeneration Demo")
@@ -165,6 +159,71 @@ class HFBenchmark:
         print(f"Generated text:")
         print(result["generated_text"])
 
+    def measure_ttft(self, prompt: str) -> dict:
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError(
+                "Tokenizer & model not loaded, fix load_components()."
+            )
+        
+        input_ids = self.build_chat_input_ids(prompt)
+        streamer = TextIteratorStreamer(
+            self.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+        )
+
+        generation_kwargs = {
+            "input_ids": input_ids,
+            "max_new_tokens": self.config.max_new_tokens,
+            "do_sample": False,
+            "pad_token_id": self.tokenizer.eos_token_id,
+            "streamer": streamer,
+        }
+
+        def run_generation() -> None:
+            with torch.no_grad():
+                self.model.generate(    # pyright: ignore reportAttributeAccessIssue
+                    **generation_kwargs
+                )
+        
+        start = time.perf_counter()
+        generation_thread = Thread(target=run_generation)
+        generation_thread.start()
+
+        first_token_time = None
+        first_text_chunk = ""
+        collected_chunks = []
+
+        for text in streamer:
+            if text:
+                collected_chunks.append(text)
+                if first_token_time is None:
+                    first_token_time = time.perf_counter()
+                    first_text_chunk = text
+
+        generation_thread.join()
+
+        ttft_s = (first_token_time - start) if first_token_time else 0.0
+        full_text = "".join(collected_chunks).strip()
+
+        return {
+            "prompt": prompt,
+            "ttft_s": ttft_s,
+            "first_text_chunk": first_text_chunk,
+            "streamed_text_preview": full_text[:200]
+        }
+    
+    def print_ttft_demo(self, prompt: str) -> None:
+        result = self.measure_ttft(prompt)
+        print("\nTTFT Demo")
+        print("-" * 40)
+        print(f"Prompt: {result['prompt']}")
+        print(f"TTFT(s): {result['ttft_s']:.4f}")
+        print(f"First streamed text chunk: {result['first_text_chunk']!r}")
+        print("Streamed preview:")
+        print(result["streamed_text_preview"])
+
+
 def main() -> None:
     config = BenchmarkConfig()
     benchmark = HFBenchmark(config)
@@ -172,6 +231,7 @@ def main() -> None:
     benchmark.load_components()
     benchmark.print_loaded_summary()
     benchmark.print_generation_demo(config.prompts[0])
+    benchmark.print_ttft_demo(config.prompts[0])
 
 if __name__ == "__main__":
     main()
