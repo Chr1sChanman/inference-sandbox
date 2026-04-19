@@ -1,11 +1,41 @@
-/.pytest_cache/
-/.venv/
-/__pycache__/
-/artifacts/
-/.ruff_cache/
-/src/__pycache__/
-/tests/__pycache__/
-.codex
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyc.*
+*$py.class
+
+# Python tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.pyre/
+.tox/
+.nox/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Coverage and test output
+.coverage
+.coverage.*
+htmlcov/
+
+# Build artifacts
+artifacts/
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Local tooling and editor settings
+.codex/
+.vscode/
+
+# Local docs
 /docs/reference/NVIDIA_Phases1-3.pdf
-#/docs/reference/NVIDIA_Phases4-7.pdf
-.vscode
+# /docs/reference/NVIDIA_Phases4-7.pdf
