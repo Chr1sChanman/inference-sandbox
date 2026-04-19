@@ -219,7 +219,7 @@ class HFBenchmark:
         print("\nTTFT Demo")
         print("-" * 40)
         print(f"Prompt: {result['prompt']}")
-        print(f"TTFT(s): {result['ttft_s']:.4f}")
+        print(f"TTFT (s): {result['ttft_s']:.4f}")
         print(f"First streamed text chunk: {result['first_text_chunk']!r}")
         print("Streamed preview:")
         print(result["streamed_text_preview"])
@@ -275,6 +275,22 @@ class HFBenchmark:
             "throughput_tokens_per_s": throughput_tokens_per_s,
             "per_prompt_results": per_prompt_results,
         }
+    
+    def print_throughput_demo(self, prompts: list[str]) -> None:
+        result = self.measure_throughput(prompts)
+        print("\nThroughput Demo")
+        print("-" * 40)
+        print(f"Prompt count: {result['prompt_count']}")
+        print(f"Total generated tokens: {result['total_generated_tokens']}")
+        print(f"Total wall time (s): {result['total_wall_time_s']:.4f}")
+        print(f"Throughput (tokens/s): {result['throughput_tokens_per_s']:.4f}")
+        print("\nPer-prompt analysis")
+        print("-" * 40)
+        for row in result["per_prompt_results"]:
+            print(f"Prompt: {row['prompt']}")
+            print(f"Generated tokens: {row['generated_tokens']}")
+            print(f"Wall time (s): {row['wall_time_s']:.4f}")
+            print()
 
 def main() -> None:
     config = BenchmarkConfig()
@@ -284,6 +300,7 @@ def main() -> None:
     benchmark.print_loaded_summary()
     benchmark.print_generation_demo(config.prompts[0])
     benchmark.print_ttft_demo(config.prompts[0])
+    benchmark.print_throughput_demo(config.prompts)
 
 if __name__ == "__main__":
     main()
