@@ -3,6 +3,8 @@ import argparse
 import os
 import time
 from pathlib import Path
+from os import PathLike
+from typing import cast
 
 import redis
 import uvicorn
@@ -82,10 +84,10 @@ def main():
     if args.serve:
         uvicorn.run(app, host="0.0.0.0", port=8080)
         return
-    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
+    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, decode_responses=True)
 
     if args.dump_results:
-        results = client.lrange("benchmark:results", 0, -1)
+        results = cast(list[str], client.lrange("benchmark:results", 0, -1))
         for result in results:
             print(json.loads(result))
         return
