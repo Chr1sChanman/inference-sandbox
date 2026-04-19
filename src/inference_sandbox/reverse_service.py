@@ -11,6 +11,8 @@ import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+FilePath = str | PathLike[str]
+
 app = FastAPI()
 APP_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(APP_ROOT / "artifacts")))
@@ -41,14 +43,14 @@ def time_reverse(text: str) -> dict:
     }
 
 
-def save_csv(results: list, path: str):
+def save_csv(results: list, path: FilePath):
     """Write results list to a CSV file at the given path."""
     with open(path, "w") as f:
         for result in results:
             f.write(f"{result['input_length']},{result['output']},{result['duration_ms']}\n")
 
 
-def load_csv(path: str) -> list:
+def load_csv(path: FilePath) -> list:
     """Load CSV results and return typed dicts matching time_reverse output."""
     with open(path, "r") as f:
         rows = []
@@ -62,13 +64,13 @@ def load_csv(path: str) -> list:
         return rows
 
 
-def save_json(results: list, path: str):
+def save_json(results: list, path: FilePath):
     """Write results list to a JSON file at the given path."""
     with open(path, "w") as f:
         json.dump(results, f, indent=2)
 
 
-def load_json(path: str) -> list:
+def load_json(path: FilePath) -> list:
     """Load and return results list from a JSON file."""
     with open(path, "r") as f:
         return json.load(f)
