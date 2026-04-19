@@ -1,8 +1,14 @@
 from dataclasses import dataclass, field
+import time
+from threading import Thread
 
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM, 
+    AutoTokenizer,
+    TextIteratorStreamer,
+)
 
 @dataclass
 class BenchmarkConfig:
@@ -93,6 +99,23 @@ class HFBenchmark:
         print("-" * 40)
         for key, value in summary.items():
             print(f"{key}: {value}")
+    
+    def build_chat_input_ids(self, prompt: str) -> torch.Tensor:
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError(
+                "Tokenizer and model not loaded, fix load_components()."
+            )
+        
+        messages = [
+            {"role": "user", "content": prompt},
+        ]
+
+        input_ids = self.tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        )
+        return input_ids.to(self.get_device())
 
     def generate_one_response(self, prompt: str) -> dict:
         if self.tokenizer is None or self.model is None:
