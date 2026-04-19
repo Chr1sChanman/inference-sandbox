@@ -35,6 +35,7 @@ pip-wheel-metadata/
 # Local tooling and editor settings
 .codex/
 .vscode/
+.codex
 
 # Local docs
 /docs/reference/NVIDIA_Phases1-3.pdf
