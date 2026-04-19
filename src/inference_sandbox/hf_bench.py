@@ -100,23 +100,24 @@ class HFBenchmark:
         for key, value in summary.items():
             print(f"{key}: {value}")
     
-    def build_chat_input_ids(self, prompt: str) -> torch.Tensor:
+    def build_chat_inputs(self, prompt: str) -> transformers.BatchEncoding:
         if self.tokenizer is None or self.model is None:
             raise RuntimeError(
-                "Tokenizer and model not loaded, fix load_components()."
+                "Tokenizer and model not loaded. Call load_components() first."
             )
-        
+
         messages = [
             {"role": "user", "content": prompt},
         ]
 
-        chat_inputs = self.tokenizer.apply_chat_template(
+        chat_text = self.tokenizer.apply_chat_template(
             messages,
+            tokenize=False,
             add_generation_prompt=True,
-            return_tensors="pt",
         )
-        chat_inputs = chat_inputs.to(self.get_device())
-        return chat_inputs["input_ids"]
+
+        chat_inputs = self.tokenizer(chat_text, return_tensors="pt")
+        return chat_inputs.to(self.get_device())
 
     def generate_one_response(self, prompt: str) -> dict:
         if self.tokenizer is None or self.model is None:
@@ -124,12 +125,12 @@ class HFBenchmark:
                 "Tokenizer and model are not loaded. Call load_components() first."
             )
 
-        input_ids = self.build_chat_input_ids(prompt)
-        input_length = input_ids.shape[1]
+        inputs = self.build_chat_inputs(prompt)
+        input_length = inputs["input_ids"].shape[1]
 
         with torch.no_grad():
             output_ids = self.model.generate(  # pyright: ignore[reportAttributeAccessIssue]
-                input_ids=input_ids,
+                **inputs,
                 max_new_tokens=self.config.max_new_tokens,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id,
@@ -165,7 +166,7 @@ class HFBenchmark:
                 "Tokenizer & model not loaded, fix load_components()."
             )
         
-        input_ids = self.build_chat_input_ids(prompt)
+        inputs = self.build_chat_inputs(prompt)
         streamer = TextIteratorStreamer(
             self.tokenizer,
             skip_prompt=True,
@@ -173,7 +174,7 @@ class HFBenchmark:
         )
 
         generation_kwargs = {
-            "input_ids": input_ids,
+            **inputs,
             "max_new_tokens": self.config.max_new_tokens,
             "do_sample": False,
             "pad_token_id": self.tokenizer.eos_token_id,
