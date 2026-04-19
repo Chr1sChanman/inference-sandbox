@@ -403,16 +403,44 @@ DTYPES_TO_COMPARE = [
     torch.bfloat16,
 ]
 
+def run_dtype_comparison(base_config: BenchmarkConfig) -> list[dict]:
+    results = []
 
+    for dtype in DTYPES_TO_COMPARE:
+        print(f"\nRunning full benchmark for {dtype}...")
+        dtype_config = base_config.with_dtype(dtype)
+        benchmark = HFBenchmark(dtype_config)
+
+        result = benchmark.run_full_benchmark()
+        results.append(result)
+
+        benchmark.unload_components()
+    
+    return results
+
+def print_dtype_comparison_table(results: list[dict]) -> None:
+    print("\nDtype Comparison Table")
+    print("-" * 86)
+    print(
+        f"{'DTYPE':<15} {'LOAD+MB':<10} {'AFTER_LOAD':<12} "
+        f"{'AFTER_BENCH':<13} {'TTFT(s)':<10} {'TOK/s':<10}"
+    )
+    print("-" * 86)
+
+    for row in results:
+        print(
+            f"{row['dtype']:<15} "
+            f"{row['vram_delta_load_mb']:<10} "
+            f"{row['vram_after_load_mb']:<12} "
+            f"{row['vram_after_benchmark_mb']:<13} "
+            f"{row['ttft_s']:<10.4f} "
+            f"{row['throughput_tokens_per_s']:<10.4f}"
+        )    
 
 def main() -> None:
-    config = BenchmarkConfig()
-    benchmark = HFBenchmark(config)
-    benchmark.print_environment_summary()
-
-    result = benchmark.run_full_benchmark()
-    benchmark.print_loaded_summary()
-    benchmark.print_full_benchmark_summary(result)
+    base_config = BenchmarkConfig()
+    results = run_dtype_comparison(base_config)
+    print_dtype_comparison_table(results)
 
 
 if __name__ == "__main__":
