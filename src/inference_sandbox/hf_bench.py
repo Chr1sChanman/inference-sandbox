@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 import time
 from threading import Thread
+import subprocess
 
 import torch
 import transformers
@@ -33,6 +34,51 @@ class HFBenchmark:
         if torch.cuda.is_available():
             return f"cuda:{self.config.gpu_index}"
         return "cpu"
+    
+    def get_vram_mb(self) -> int:
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA GPU is required for VRAM measurement.")
+
+        torch.cuda.synchronize()
+
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                f"--id={self.config.gpu_index}",
+                "--query-gpu=memory.used",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        used_mb = result.stdout.strip().splitlines()[0]
+        return int(used_mb)
+
+    def measure_load_vram(self) -> dict:
+        if self.model is not None or self.tokenizer is not None:
+            raise RuntimeError(
+                "measure_load_vram() should be called before load_components()."
+            )
+
+        vram_before_load_mb = self.get_vram_mb()
+        self.load_components()
+        vram_after_load_mb = self.get_vram_mb()
+
+        return {
+            "dtype": str(self.config.dtype),
+            "vram_before_load_mb": vram_before_load_mb,
+            "vram_after_load_mb": vram_after_load_mb,
+            "vram_delta_load_mb": vram_after_load_mb - vram_before_load_mb,
+        }
+
+    def print_load_vram_demo(self, result: dict) -> None:
+        print("\nVRAM Load Demo")
+        print("-" * 40)
+        print(f"Dtype: {result['dtype']}")
+        print(f"VRAM before load (MB): {result['vram_before_load_mb']}")
+        print(f"VRAM after load (MB): {result['vram_after_load_mb']}")
+        print(f"VRAM delta load (MB): {result['vram_delta_load_mb']}")
     
     def describe_environment(self) -> dict:
         cuda_available = torch.cuda.is_available()
@@ -296,11 +342,14 @@ def main() -> None:
     config = BenchmarkConfig()
     benchmark = HFBenchmark(config)
     benchmark.print_environment_summary()
-    benchmark.load_components()
+    vram_result = benchmark.measure_load_vram()
     benchmark.print_loaded_summary()
-    benchmark.print_generation_demo(config.prompts[0])
-    benchmark.print_ttft_demo(config.prompts[0])
-    benchmark.print_throughput_demo(config.prompts)
+    benchmark.print_load_vram_demo(vram_result)
+    #benchmark.load_components()
+    #benchmark.print_loaded_summary()
+    #benchmark.print_generation_demo(config.prompts[0])
+    #benchmark.print_ttft_demo(config.prompts[0])
+    #benchmark.print_throughput_demo(config.prompts)
 
 if __name__ == "__main__":
     main()
