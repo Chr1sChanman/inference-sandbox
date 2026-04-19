@@ -69,7 +69,7 @@ class HFBenchmark:
             self.config.model_name,
             dtype=self.config.dtype,
         )
-        self.model.to(self.get_device())    # pyright: ignore
+        self.model.to(self.get_device())    # pyright: ignore reportGeneralTypeIssues
         self.model.eval()
     
     def describe_loaded_objects(self) -> dict:
@@ -113,7 +113,7 @@ class HFBenchmark:
         input_length = inputs["input_ids"].shape[1]
 
         with torch.no_grad():
-            output_ids = self.model.generate(
+            output_ids = self.model.generate(   # pyright: ignore reportAttributeAccessIssue
                 **inputs,
                 max_new_tokens=self.config.max_new_tokens,
                 do_sample=False,
