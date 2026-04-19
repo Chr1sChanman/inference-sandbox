@@ -337,19 +337,57 @@ class HFBenchmark:
             print(f"Generated tokens: {row['generated_tokens']}")
             print(f"Wall time (s): {row['wall_time_s']:.4f}")
             print()
+    
+    def run_full_benchmark(self) -> dict:
+        if self.model is not None or self.tokenizer is not None:
+            raise RuntimeError(
+                "run_full_benchmark() should be called on a fresh HFBenchmark instance."
+            )
+
+        load_result = self.measure_load_vram()
+        ttft_result = self.measure_ttft(self.config.prompts[0])
+        throughput_result = self.measure_throughput(self.config.prompts)
+        vram_after_benchmark_mb = self.get_vram_mb()
+
+        return {
+            "dtype": load_result["dtype"],
+            "prompt_count": throughput_result["prompt_count"],
+            "vram_before_load_mb": load_result["vram_before_load_mb"],
+            "vram_after_load_mb": load_result["vram_after_load_mb"],
+            "vram_delta_load_mb": load_result["vram_delta_load_mb"],
+            "vram_after_benchmark_mb": vram_after_benchmark_mb,
+            "ttft_s": ttft_result["ttft_s"],
+            "throughput_tokens_per_s": throughput_result["throughput_tokens_per_s"],
+            "total_generated_tokens": throughput_result["total_generated_tokens"],
+            "total_wall_time_s": throughput_result["total_wall_time_s"],
+        }
+
+    def print_full_benchmark_summary(self, result: dict) -> None:
+        print("\nFull Benchmark Summary")
+        print("-" * 40)
+        print(f"Dtype: {result['dtype']}")
+        print(f"Prompt count: {result['prompt_count']}")
+        print(f"VRAM before load (MB): {result['vram_before_load_mb']}")
+        print(f"VRAM after load (MB): {result['vram_after_load_mb']}")
+        print(f"VRAM delta load (MB): {result['vram_delta_load_mb']}")
+        print(f"VRAM after benchmark (MB): {result['vram_after_benchmark_mb']}")
+        print(f"TTFT (s): {result['ttft_s']:.4f}")
+        print(
+            f"Throughput (tokens/s): {result['throughput_tokens_per_s']:.4f}"
+        )
+        print(f"Total generated tokens: {result['total_generated_tokens']}")
+        print(f"Total wall time (s): {result['total_wall_time_s']:.4f}")
+
 
 def main() -> None:
     config = BenchmarkConfig()
     benchmark = HFBenchmark(config)
     benchmark.print_environment_summary()
-    vram_result = benchmark.measure_load_vram()
+
+    result = benchmark.run_full_benchmark()
     benchmark.print_loaded_summary()
-    benchmark.print_load_vram_demo(vram_result)
-    #benchmark.load_components()
-    #benchmark.print_loaded_summary()
-    #benchmark.print_generation_demo(config.prompts[0])
-    #benchmark.print_ttft_demo(config.prompts[0])
-    #benchmark.print_throughput_demo(config.prompts)
+    benchmark.print_full_benchmark_summary(result)
+
 
 if __name__ == "__main__":
     main()
