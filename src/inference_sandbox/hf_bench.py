@@ -224,6 +224,57 @@ class HFBenchmark:
         print("Streamed preview:")
         print(result["streamed_text_preview"])
 
+    def measure_throughput(self, prompts: list[str]) -> dict:
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError(
+                "Tokenizer & model not loaded, call load_components()"
+            )
+        
+        per_prompt_results = []
+        total_generated_tokens = 0
+        total_wall_time_s = 0.0
+
+        for prompt in prompts:
+            inputs = self.build_chat_inputs(prompt)
+            input_length = inputs["input_ids"].shape[1]     # pyright: ignore[reportAttributeAccessIssue]
+
+            start = time.perf_counter()
+            with torch.no_grad():
+                output_ids = self.model.generate(   # pyright: ignore[reportAttributeAccessIssue]
+                    **inputs,
+                    max_new_tokens=self.config.max_new_tokens,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                )
+            end = time.perf_counter()
+
+            generated_ids = output_ids[0][input_length:]
+            generated_tokens = int(generated_ids.shape[0])
+            wall_time_s = end - start
+
+            per_prompt_results.append(
+                {
+                    "prompt": prompt,
+                    "generated_tokens": generated_tokens,
+                    "wall_time_s": wall_time_s
+                }
+            )
+
+            total_generated_tokens += generated_tokens
+            total_wall_time_s += wall_time_s
+        
+        throughput_tokens_per_s = (
+            total_generated_tokens / total_wall_time_s
+            if total_wall_time_s > 0 else 0.0
+        )
+
+        return {
+            "prompt_count": len(prompts),
+            "total_generated_tokens": total_generated_tokens,
+            "total_wall_time_s": total_wall_time_s,
+            "throughput_tokens_per_s": throughput_tokens_per_s,
+            "per_prompt_results": per_prompt_results,
+        }
 
 def main() -> None:
     config = BenchmarkConfig()
