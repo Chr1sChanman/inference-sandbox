@@ -67,9 +67,9 @@ class HFBenchmark:
         print("Loading model...")
         self.model = AutoModelForCausalLM.from_pretrained(
             self.config.model_name,
-            torch_dtype=self.config.dtype,
+            dtype=self.config.dtype,
         )
-        self.model.to(self.get_device())
+        self.model.to(self.get_device())    # pyright: ignore
         self.model.eval()
     
     def describe_loaded_objects(self) -> dict:
@@ -81,6 +81,7 @@ class HFBenchmark:
         return {
             "loaded": True,
             "tokenizer_class": self.tokenizer.__class__.__name__,
+            "model_class": self.model.__class__.__name__,
             "model_dtype": str(first_param.dtype),
             "model_device": str(first_param.device),
             "vocab_size": self.tokenizer.vocab_size,
