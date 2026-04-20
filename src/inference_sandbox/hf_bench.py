@@ -146,6 +146,8 @@ class HFBenchmark:
         )
         self.model.to(self.get_device())    # pyright: ignore reportGeneralTypeIssues
         self.model.eval()
+        # Controls generation len with max_new_tokens per call
+        self.model.generation_config.max_length = None
     
     def unload_components(self) -> None:
         self.model = None
@@ -196,6 +198,24 @@ class HFBenchmark:
 
         chat_inputs = self.tokenizer(chat_text, return_tensors="pt")
         return chat_inputs.to(self.get_device())
+    
+    def build_generation_kwargs(self, inputs: transformers.BatchEncoding, streamer=None) -> dict:
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError(
+                "Tokenizer and model not loaded, call load_components() first."
+            )
+        
+        generation_kwargs = {
+            **inputs,
+            "max_new_tokens": self.config.max_new_tokens,
+            "do_sample": False,
+            "pad_token_id": self.tokenizer.eos_token_id,
+        }
+
+        if streamer is not None:
+            generation_kwargs["streamer"] = streamer
+        
+        return generation_kwargs
 
     def generate_one_response(self, prompt: str) -> dict:
         if self.tokenizer is None or self.model is None:
@@ -206,12 +226,11 @@ class HFBenchmark:
         inputs = self.build_chat_inputs(prompt)
         input_length = inputs["input_ids"].shape[1]     # pyright: ignore[reportAttributeAccessIssue]
 
+        generation_kwargs = self.build_generation_kwargs(inputs)
+
         with torch.no_grad():
             output_ids = self.model.generate(  # pyright: ignore[reportAttributeAccessIssue]
-                **inputs,
-                max_new_tokens=self.config.max_new_tokens,
-                do_sample=False,
-                pad_token_id=self.tokenizer.eos_token_id,
+                **generation_kwargs
             )
 
         generated_ids = output_ids[0][input_length:]
@@ -251,13 +270,7 @@ class HFBenchmark:
             skip_special_tokens=True,
         )
 
-        generation_kwargs = {
-            **inputs,
-            "max_new_tokens": self.config.max_new_tokens,
-            "do_sample": False,
-            "pad_token_id": self.tokenizer.eos_token_id,
-            "streamer": streamer,
-        }
+        generation_kwargs = self.build_generation_kwargs(inputs, streamer=streamer)
 
         def run_generation() -> None:
             with torch.no_grad():
@@ -317,12 +330,10 @@ class HFBenchmark:
             input_length = inputs["input_ids"].shape[1]     # pyright: ignore[reportAttributeAccessIssue]
 
             start = time.perf_counter()
+            generation_kwargs = self.build_generation_kwargs(inputs)
             with torch.no_grad():
                 output_ids = self.model.generate(   # pyright: ignore[reportAttributeAccessIssue]
-                    **inputs,
-                    max_new_tokens=self.config.max_new_tokens,
-                    do_sample=False,
-                    pad_token_id=self.tokenizer.eos_token_id,
+                    **generation_kwargs
                 )
             end = time.perf_counter()
 
