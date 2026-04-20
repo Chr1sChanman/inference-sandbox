@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
 from threading import Thread
 import subprocess
+import argparse
+import redis
+import json
 import time
 import gc
+import os
 
 import torch
 import transformers
@@ -11,6 +15,14 @@ from transformers import (
     AutoTokenizer,
     TextIteratorStreamer,
 )
+
+DTYPES_TO_COMPARE = [
+    torch.float32,
+    torch.float16,
+    torch.bfloat16,
+]
+
+HF_RESULTS_KEY = "benchmark:hf_results"
 
 @dataclass
 class BenchmarkConfig:
@@ -397,12 +409,6 @@ class HFBenchmark:
         print(f"Total generated tokens: {result['total_generated_tokens']}")
         print(f"Total wall time (s): {result['total_wall_time_s']:.4f}")
 
-DTYPES_TO_COMPARE = [
-    torch.float32,
-    torch.float16,
-    torch.bfloat16,
-]
-
 def run_dtype_comparison(base_config: BenchmarkConfig) -> list[dict]:
     results = []
 
@@ -435,12 +441,40 @@ def print_dtype_comparison_table(results: list[dict]) -> None:
             f"{row['vram_after_benchmark_mb']:<13} "
             f"{row['ttft_s']:<10.4f} "
             f"{row['throughput_tokens_per_s']:<10.4f}"
-        )    
+        )
+
+def create_redis_client() -> redis.Redis:
+        return redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, decode_responses=True)
+
+def save_results_to_redis(client: redis.Redis, results: list[dict], key: str = HF_RESULTS_KEY) -> None:
+        payload = {
+            "saved_at_epoch_s": time.time(),
+            "results": results,
+        }
+        client.rpush(key, json.dumps(payload))
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--compare-dtypes", action="store_true")
+    args = parser.parse_args()
+
     base_config = BenchmarkConfig()
-    results = run_dtype_comparison(base_config)
-    print_dtype_comparison_table(results)
+
+    if args.compare_dtypes:
+        results = run_dtype_comparison(base_config)
+        print_dtype_comparison_table(results)
+
+        client = create_redis_client()
+        save_results_to_redis(client, results)
+
+        print(f"\nSaved dtype comparison to Redis key: {HF_RESULTS_KEY}")
+        return
+    
+    benchmark = HFBenchmark(base_config)
+    benchmark.print_environment_summary()
+    result = benchmark.run_full_benchmark()
+    benchmark.print_loaded_summary()
+    benchmark.print_full_benchmark_summary(result)
 
 
 if __name__ == "__main__":
