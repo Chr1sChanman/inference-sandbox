@@ -454,10 +454,36 @@ def save_results_to_redis(client: redis.Redis, results: list[dict], key: str = H
         }
         client.rpush(key, json.dumps(payload))
 
+def dump_results_from_redis(client: redis.Redis, key: str = HF_RESULTS_KEY) -> None:
+    results = cast(list[str], client.lrange(key, 0, -1))
+
+    if not results:
+        print(f"No saved results found in Redis key: {key}")
+        return
+
+    print(f"Stored Redis entries in key: {key}")
+    print("-" * 40)
+
+    for index, result in enumerate(results, start=1):
+        print(f"Entry {index}")
+        print(json.dumps(json.loads(result), indent=2))
+        print()
+
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--compare-dtypes", action="store_true")
-    parser.add_argument("--dump-results", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Run local Hugging Face GPU benchmarks for TinyLlama."
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--compare-dtypes",
+        action="store_true",
+        help="Run the dtype comparison benchmark and save results to Redis.",
+    )
+    group.add_argument(
+        "--dump-results",
+        action="store_true",
+        help="Print saved Hugging Face benchmark results from Redis.",
+    )
     args = parser.parse_args()
 
     base_config = BenchmarkConfig()
@@ -474,9 +500,7 @@ def main() -> None:
     
     if args.dump_results:
         client = create_redis_client()
-        results = cast(list[str], client.lrange(HF_RESULTS_KEY, 0, -1))
-        for result in results:
-            print(json.loads(result))
+        dump_results_from_redis(client)
         return
     
     benchmark = HFBenchmark(base_config)
