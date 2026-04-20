@@ -8,10 +8,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip && \
     pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
-COPY benchmark.py test_benchmark.py ./
+COPY src ./src
+ENV PYTHONPATH=/app/src
 
 LABEL version="1.0" maintainer="Chanman"
 
 USER appuser
 
-CMD ["python", "benchmark.py"]
+CMD ["python", "-m", "inference_sandbox.reverse_service"]

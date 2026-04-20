@@ -1,7 +1,9 @@
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
+
 import ollama
 
 MODELS = ["qwen3:0.6b", "qwen3:4b", "qwen3:8b"]
@@ -13,11 +15,14 @@ PROMPTS = [
     "Give a simple example of Python list slicing.",
 ]
 
-OUTPUT_PATH = Path(__file__).resolve().parent / "results" / "ollama_results.jsonl"
+APP_ROOT = Path(__file__).resolve().parents[2]
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(APP_ROOT / "artifacts")))
+OUTPUT_PATH = ARTIFACTS_DIR / "ollama" / "ollama_results.jsonl"
 
 GPU_INDEX = 0
 STOP_BETWEEN_MODELS = True
 STOP_BEFORE_BENCHMARK = True
+
 
 def get_vram_mb(gpu_index: int = GPU_INDEX) -> int:
     result = subprocess.run(
@@ -33,6 +38,7 @@ def get_vram_mb(gpu_index: int = GPU_INDEX) -> int:
     )
     used_mb = result.stdout.strip().splitlines()[0]
     return int(used_mb)
+
 
 def stop_model(model: str) -> None:
     subprocess.run(
@@ -64,7 +70,6 @@ def show_running_models() -> None:
         print(result.stdout.strip())
 
 
-
 def run_one_prompt(model: str, prompt: str) -> dict:
     vram_before = get_vram_mb()
     vram_peak = vram_before
@@ -74,7 +79,7 @@ def run_one_prompt(model: str, prompt: str) -> dict:
     final_chunk = None
 
     stream = ollama.chat(
-        model = model,
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         stream=True,
     )
@@ -112,10 +117,16 @@ def run_one_prompt(model: str, prompt: str) -> dict:
         "vram_peak_mb": vram_peak,
         "vram_after_mb": vram_after,
         "vram_delta_mb": vram_peak - vram_before,
-        "load_duration_s": (final_chunk.load_duration if final_chunk and final_chunk.load_duration else 0) / 1_000_000_000,
+        "load_duration_s": (
+            (final_chunk.load_duration if final_chunk and final_chunk.load_duration else 0) / 1_000_000_000
+        ),
         "prompt_tokens": final_chunk.prompt_eval_count if final_chunk and final_chunk.prompt_eval_count else 0,
-        "prompt_eval_duration_s": (final_chunk.prompt_eval_duration if final_chunk and final_chunk.prompt_eval_duration else 0) / 1_000_000_000,
+        "prompt_eval_duration_s": (
+            (final_chunk.prompt_eval_duration if final_chunk and final_chunk.prompt_eval_duration else 0)
+            / 1_000_000_000
+        ),
     }
+
 
 def print_table(results: list[dict]) -> None:
     print(
@@ -143,6 +154,7 @@ def save_jsonl(results: list[dict], path: Path) -> None:
         for row in results:
             f.write(json.dumps(row) + "\n")
 
+
 def main() -> None:
     results = []
 
@@ -168,6 +180,7 @@ def main() -> None:
     print_table(results)
     save_jsonl(results, OUTPUT_PATH)
     show_running_models()
+
 
 if __name__ == "__main__":
     main()

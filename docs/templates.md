@@ -63,14 +63,17 @@ revert — Undoing a previous commit. Git generates this message automatically w
 docker-compose.yml — a two-service stack
 services:
   app:
-    build: .                          # Build image from local Dockerfile
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
     ports:
       - "8080:8080"                   # host:container port mapping
     environment:
       - REDIS_HOST=redis              # 'redis' resolves to the redis container
       - LOG_LEVEL=DEBUG
+      - ARTIFACTS_DIR=/app/artifacts
     volumes:
-      - ./results:/app/results        # Bind mount: host directory into container
+      - ./artifacts:/app/artifacts    # Bind mount: host directory into container
     depends_on:
       - redis                         # Don't start app until redis is up
 

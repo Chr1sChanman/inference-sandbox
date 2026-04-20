@@ -1,10 +1,14 @@
+import pytest
 from kubernetes import client, config
+
+pytestmark = pytest.mark.system
 
 NAMESPACE = "default"
 LABEL_SELECTOR = "app=inference-sandbox"
 MIN_RUNNING_PODS = 2
 
-def run_test():
+
+def test_min_running_pods():
     # Loads what kubectl uses ~/.kube/config
     # Minikube automatically creates this when running minikube start
     config.load_kube_config()
@@ -21,12 +25,5 @@ def run_test():
     print(f"Found {len(running_pods)} running pod(s) with label '{LABEL_SELECTOR}':")
     for pod in running_pods:
         print(f" - {pod.metadata.name}: {pod.status.phase}")
-    
-    # Assertion test for minimum running pods
-    if len(running_pods) >= MIN_RUNNING_PODS:
-        print(f"\nPASS: {len(running_pods)} >= {MIN_RUNNING_PODS} running pods")
-    else:
-        print(f"\nFAIL: only {len(running_pods)} running pod(s), expected >={MIN_RUNNING_PODS}")
 
-if __name__ == "__main__":
-    run_test()
+    assert len(running_pods) >= MIN_RUNNING_PODS

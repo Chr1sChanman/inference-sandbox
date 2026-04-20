@@ -30,12 +30,12 @@
 > Will replace another container if given the same name
 > Tag (-t) lets you name the container instead of being assigned a random ID
 
-`docker build -f Dockerfile.name -t image-name .`
+`docker build -f docker/Dockerfile.service -t image-name .`
 > Used if you have multiple 
 
 `docker run --rm container-name additional-cmds`
 > -rm is important in preventing old containers from taking up space
-> Example of additional cmds: `docker run --rm inference-sandbox pytest test_benchmark.py`
+> Example of additional cmds: `docker run --rm inference-sandbox python -m inference_sandbox.reverse_service`
 
 ## Listing Containers/Images
 
@@ -71,7 +71,7 @@
 `docker compose logs app`
 > stream logs from the app service
 
-`docker compose run --rm app python filename.py args`
+`docker compose run --rm app python -m inference_sandbox.reverse_service args`
 > run a command in a compose container
 
 # GitLab
@@ -94,8 +94,8 @@
 `eval $(minikube docker-env --unset)`
 > Resets Docker CLI back to your local system daemon
 
-`kubectl apply -f filename.yaml`
-> Create or update a Kubernetes resource from a YAML file
+`kubectl apply -f deploy/k8s/base/`
+> Create or update the Kubernetes resource set from the base manifest directory
 
 `kubectl get pods`
 > List all pods in the default namespace

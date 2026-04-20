@@ -4,3 +4,8 @@ redis
 fastapi
 uvicorn
 kubernetes
+ollama
+pydantic
+transformers
+accelerate
+torch

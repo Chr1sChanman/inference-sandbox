@@ -1,5 +1,12 @@
 import pytest
-from benchmark import time_reverse, load_json, save_json, load_csv, save_csv
+
+from inference_sandbox.reverse_service import (
+    load_csv,
+    load_json,
+    save_csv,
+    save_json,
+    time_reverse,
+)
 
 
 INPUTS = [

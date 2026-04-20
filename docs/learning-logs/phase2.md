@@ -1,13 +1,13 @@
 # Phase 2
 
 ## What I Built This Week
-This week I built a single-stage, multi-stage, and a docker-compose to run benchmark.py, analyze the results pushed to Redis, and understand the caching behavior of the build process.
+This week I built a single-stage image, a multi-stage image, and a docker-compose stack to run `python -m inference_sandbox.reverse_service`, analyze the results pushed to Redis, and understand the caching behavior of the build process.
 
 ## What I Learned
 - Image size difference between single-stage and multi-stage
 - Caching behavior of the build process
 - How to build and push images to GitLab registry
-- How to use docker-compose to run benchmark.py and analyze the results
+- How to use docker-compose to run `python -m inference_sandbox.reverse_service` and analyze the results
 - NVIDIA CUDA base image types — three variants used in production:
     - base (~200MB): CUDA runtime only, for apps that just need CUDA at runtime
     - runtime (~1.5GB): CUDA + cuDNN runtime, for running pre-compiled models like TRT-LLM
@@ -19,7 +19,7 @@ This week I built a single-stage, multi-stage, and a docker-compose to run bench
 
 ## What Surprised Me
 - How easy it was to build and push images to GitLab registry
-- How easy it was to use docker-compose to run benchmark.py and analyze the results
+- How easy it was to use docker-compose to run `python -m inference_sandbox.reverse_service` and analyze the results
 
 ## Open Questions
 Maybe understanding why running on "6379" needs security credentials and maybe just in general security measures taken when running images/containers.
@@ -28,7 +28,7 @@ Maybe understanding why running on "6379" needs security credentials and maybe j
 - Build a single-stage dockerfile [x] Done / [ ] Not yet
 - Build a multi-stage dockerfile [x] Done / [ ] Not yet
 - Build a docker-compose file [x] Done / [ ] Not yet
-- Run benchmark.py and analyze the results [x] Done / [ ] Not yet
+- Run `python -m inference_sandbox.reverse_service` and analyze the results [x] Done / [ ] Not yet
 - Push the image to GitLab registry [x] Done / [ ] Not yet
 - Understand the caching behavior of the build process [x] Done / [ ] Not yet
 
@@ -43,7 +43,7 @@ inference-sandbox-multi    latest                     cb036c453886   2 minutes a
 ```
 
 ### Phase 2.2
-To put in my own words how caching behavior works, it caches up until the step that has changed, then rebuilding everything after. For example, the first run uses no cache as it is building fresh, but on the second run where we change benchmark.py, that step and the ones after all rerun as the change in the .py file could affect all subsequent runs. That's why when we add a blank line in requirements.txt and run the third build, it has to build fresh from the step where it copies the .txt file and everything after.
+To put in my own words how caching behavior works, it caches up until the step that has changed, then rebuilds everything after it. For example, the first run uses no cache because it is building fresh, but on the second run where we change `src/inference_sandbox/reverse_service.py`, that step and the ones after all rerun because the Python source could affect all subsequent steps. That's why when we add a blank line in `requirements.txt` and run the third build, it has to build fresh from the step where it copies the dependency file and everything after it.
 ```
 (nvidia) cchan@ubuntu-cchan:~/code/inference-sandbox$ docker build --no-cache -t inference-sandbox .
 DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
@@ -101,13 +101,13 @@ Installing collected packages: ruff, pygments, pluggy, packaging, iniconfig, pyt
 Successfully installed iniconfig-2.3.0 packaging-26.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.2 ruff-0.15.9
  ---> Removed intermediate container f925f01fc142
  ---> b43a763154d7
-Step 6/8 : COPY benchmark.py test_benchmark.py ./
+Step 6/8 : COPY src ./src
  ---> 1838cd416b74
 Step 7/8 : USER appuser
  ---> Running in 8d271e86b8e9
  ---> Removed intermediate container 8d271e86b8e9
  ---> 7b53ca47ea6a
-Step 8/8 : CMD ["python", "benchmark.py"]
+Step 8/8 : CMD ["python", "-m", "inference_sandbox.reverse_service"]
  ---> Running in 15ef37cc6674
  ---> Removed intermediate container 15ef37cc6674
  ---> 131bdf6ea0f3
@@ -133,13 +133,13 @@ Step 4/8 : COPY requirements.txt .
 Step 5/8 : RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip &&     pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
  ---> Using cache
  ---> b43a763154d7
-Step 6/8 : COPY benchmark.py test_benchmark.py ./
+Step 6/8 : COPY src ./src
  ---> 9679281ed999
 Step 7/8 : USER appuser
  ---> Running in 51970cdb519c
  ---> Removed intermediate container 51970cdb519c
  ---> 29e837978584
-Step 8/8 : CMD ["python", "benchmark.py"]
+Step 8/8 : CMD ["python", "-m", "inference_sandbox.reverse_service"]
  ---> Running in 6ed76608b508
  ---> Removed intermediate container 6ed76608b508
  ---> 800b712bf06d
@@ -199,13 +199,13 @@ Installing collected packages: ruff, pygments, pluggy, packaging, iniconfig, pyt
 Successfully installed iniconfig-2.3.0 packaging-26.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.2 ruff-0.15.9
  ---> Removed intermediate container 827a7fdb9558
  ---> a5990ab7c367
-Step 6/8 : COPY benchmark.py test_benchmark.py ./
+Step 6/8 : COPY src ./src
  ---> 3d84b4ffe90c
 Step 7/8 : USER appuser
  ---> Running in 5b5a9bd9c374
  ---> Removed intermediate container 5b5a9bd9c374
  ---> 74cd7beb7db9
-Step 8/8 : CMD ["python", "benchmark.py"]
+Step 8/8 : CMD ["python", "-m", "inference_sandbox.reverse_service"]
  ---> Running in 78b4aa2641e4
  ---> Removed intermediate container 78b4aa2641e4
  ---> af4974a67f8f

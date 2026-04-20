@@ -26,7 +26,7 @@ None at the current moment, maybe asking about the security when pushing code as
 What other terms/concepts to look into like decorators and OOP relevant
 
 ## Checkpoint Status
-- Create benchmark.py [x] Done / [ ] Not yet
+- Create `src/inference_sandbox/reverse_service.py` [x] Done / [ ] Not yet
 - Create function time_reverse() that reverses an input string and returns input length, output, and duration in ms [x] Done / [ ] Not yet
 - Create a main block that calls on time_reverse() and outputs a table of results [x] Done / [ ] Not yet
 - Create validation through pytest to assert the three tests [x] Done / [ ] Not yet
