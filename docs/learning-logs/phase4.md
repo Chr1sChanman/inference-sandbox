@@ -59,3 +59,7 @@ In `src/inference_sandbox/ollama_bench.py`, I currently use these fields and def
 The big takeaway is that chunks are useful for detecting TTFT and understanding the stream structure, while the final Ollama metadata chunk is the better source for throughput-related metrics such as generated token count and generation duration.
 
 When measuring models in Ollama, make sure to stop any instances of if they are listed in `ollama ps` with `ollama stop [model]` as the SDK will reuse the model already loaded and break the clean baseline/measurement.
+
+# Phase 4.2
+
+The dtype comparison matched expectations: FP32 used about 2x the VRAM of FP16 and BF16 because each parameter uses 4 bytes instead of 2. FP16 and BF16 had similar VRAM usage, TTFT, and throughput on the RTX 5070 Ti, while FP32 was slower overall. All tasks were completed such as Redis result storing and TTFT implemention with TextIteratorStreamer.
