@@ -254,7 +254,7 @@ class HFBenchmark:
         print(f"Prompt: {result['prompt']}")
         print(f"Input tokens: {result['input_token_count']}")
         print(f"Generated tokens: {result['generated_token_count']}")
-        print(f"Generated text:")
+        print("Generated text:")
         print(result["generated_text"])
 
     def measure_ttft(self, prompt: str) -> dict:
