@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from threading import Thread
+from typing import cast
 import subprocess
 import argparse
 import redis
@@ -456,6 +457,7 @@ def save_results_to_redis(client: redis.Redis, results: list[dict], key: str = H
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--compare-dtypes", action="store_true")
+    parser.add_argument("--dump-results", action="store_true")
     args = parser.parse_args()
 
     base_config = BenchmarkConfig()
@@ -468,6 +470,13 @@ def main() -> None:
         save_results_to_redis(client, results)
 
         print(f"\nSaved dtype comparison to Redis key: {HF_RESULTS_KEY}")
+        return
+    
+    if args.dump_results:
+        client = create_redis_client()
+        results = cast(list[str], client.lrange(HF_RESULTS_KEY, 0, -1))
+        for result in results:
+            print(json.loads(result))
         return
     
     benchmark = HFBenchmark(base_config)
