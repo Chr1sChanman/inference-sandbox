@@ -5,6 +5,8 @@ addopts = "-v"
 markers = [
   "integration: requires Ollama, local models, and NVIDIA GPU access",
   "system: requires Kubernetes cluster access",
+  "slow: takes more than a few seconds (perplexity, large corporation)",
+  "gpu: requires CUDA-capable GPU",
 ]
 
 [tool.ruff]
