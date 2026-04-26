@@ -63,3 +63,21 @@ When measuring models in Ollama, make sure to stop any instances of if they are 
 # Phase 4.2
 
 The dtype comparison matched expectations: FP32 used about 2x the VRAM of FP16 and BF16 because each parameter uses 4 bytes instead of 2. FP16 and BF16 had similar VRAM usage, TTFT, and throughput on the RTX 5070 Ti, while FP32 was slower overall. All tasks were completed such as Redis result storing and TTFT implemention with TextIteratorStreamer.
+
+# Phase 4.3
+
+# Phase 4.3
+
+Sanity-checked corpus_perplexity() on 20 WikiText-2 sentences before writing 
+the full test. Both FP32 and FP16 produced PPL ≈ 14.10 on 3199 tokens, which 
+is consistent with a well-behaved FP16 cast (drift < 0.01).
+
+```
+python scratch_ppl.py  # FP16, 20 sentences
+PPL (FP16, 20 sentences): 14.1017  | Tokens: 3199
+
+python scratch_ppl.py  # FP32, 20 sentences  
+PPL (FP32, 20 sentences): 14.1001  | Tokens: 3199
+
+Drift: 0.0016 — well within the 0.5 tolerance threshold.
+```
