@@ -1,11 +1,6 @@
 # inference-sandbox
 
-A package-oriented inference sandbox that now reflects a more realistic multi-phase SDET-style layout:
-
-- Phase 1: Python benchmark logic and unit tests
-- Phase 2: Dockerfiles and Docker Compose
-- Phase 3: Kubernetes manifests and smoke tests
-- Phase 4: Ollama GPU benchmarking and integration tests
+An exploratory project that formats learning and style in an SDET like layout in preperation for an internship that centers around Deep Learning, Gitlab CI/CD, and NVIDIA framworks.
 
 ## Repo Layout
 
@@ -16,12 +11,15 @@ inference-sandbox/
       __init__.py
       reverse_service.py
       ollama_bench.py
+      hf_bench.py
+      perplexity.py
   tests/
     conftest.py
     unit/
       test_reverse_service.py
     integration/
       test_ollama_bench.py
+      test_quantisation.py
     system/
       test_k8s_smoke.py
   docker/
@@ -51,6 +49,8 @@ inference-sandbox/
       NVIDIA_Phases4-7.pdf
     cmdlist.md
     templates.md
+  exploration/
+    scratch_ppl.py
   docker-compose.yml
   pyproject.toml
   requirements.txt
@@ -63,14 +63,20 @@ inference-sandbox/
   Contains the string-reversal benchmark logic, CSV/JSON persistence helpers, Redis result publishing, and the FastAPI `/infer` endpoint.
 - `src/inference_sandbox/ollama_bench.py`
   Runs local Ollama benchmarks and writes model timing and VRAM metrics to `artifacts/ollama/ollama_results.jsonl`.
+- `src/inference_sandbox/hf_bench.py`
+  Hugging Face benchmark for TinyLlama with TTFT via `TextIteratorStreamer`, throughput, VRAM, and a dtype comparison (FP32/FP16/BF16) with optional Redis storage.
+- `src/inference_sandbox/perplexity.py`
+  `corpus_perplexity()` helper that computes token-weighted mean NLL over a list of samples and returns perplexity (`exp(mean NLL)`).
 - `tests/unit/test_reverse_service.py`
   Unit tests for benchmark output correctness and CSV/JSON round-tripping.
 - `tests/integration/test_ollama_bench.py`
   Integration tests for Ollama TTFT, throughput, and VRAM behavior. Requires Ollama, models, and an NVIDIA GPU.
+- `tests/integration/test_quantisation.py`
+  GPU perplexity gate that loads TinyLlama in FP32/FP16/BF16, scores a fixed WikiText-2 test subset, and asserts `|PPL(dtype) − PPL(FP32)| < 0.5`. Marked `gpu` and `slow`; skips on CPU-only hosts.
 - `tests/system/test_k8s_smoke.py`
   Kubernetes smoke test that checks for at least two running `inference-sandbox` pods.
 - `tests/conftest.py`
-  Adds `src/` to `sys.path` so package imports work from pytest.
+  Adds `src/` to `sys.path` so package imports work from pytest, and registers `--gpu` / `--slow` CLI flags that filter collection to tests carrying the matching markers.
 - `docker/Dockerfile.benchmark`
   Single-stage benchmark image that runs `python -m inference_sandbox.reverse_service`.
 - `docker/Dockerfile.service`
@@ -80,7 +86,7 @@ inference-sandbox/
 - `deploy/k8s/base/`
   Base Kubernetes manifests for the app deployment, service, Redis, and ConfigMap.
 - `pyproject.toml`
-  Stores pytest discovery config plus the `integration` and `system` markers.
+  Stores pytest discovery config plus the `integration`, `system`, `gpu`, and `slow` markers.
 - `.gitlab-ci.yml`
   Lints `src/` and `tests/`, runs non-hardware pytest, and builds the service image.
 - `artifacts/benchmark/` and `artifacts/ollama/`
@@ -138,6 +144,7 @@ PYTHONPATH=src python3 -m inference_sandbox.reverse_service
 - `tests/unit/` contains fast local tests.
 - `tests/integration/` is marked `integration` in `pyproject.toml` and is meant for Ollama/GPU-dependent validation.
 - `tests/system/` is marked `system` and is meant for Kubernetes cluster validation.
+- `gpu` and `slow` markers gate CUDA-only and longer-running tests (e.g. perplexity). They can be selected via `-m` or via the `--gpu` / `--slow` CLI flags from `tests/conftest.py`.
 
 Examples:
 
@@ -145,6 +152,7 @@ Examples:
 python3 -m pytest -q tests -m "not integration and not system"
 python3 -m pytest -q tests/integration -m integration
 python3 -m pytest -q tests/system -m system
+python3 -m pytest -q tests/integration -m "gpu and slow"
 ```
 
 ## Phase 1 Commands
@@ -372,6 +380,36 @@ python3 -m pytest -q tests/integration -m integration
 Expected output:
 
 - `artifacts/ollama/ollama_results.jsonl`
+
+### Phase 4.3: Quantisation Quality Gate
+
+Phase 4.3 adds a perplexity-based regression test that compares FP16 and BF16 inference to an FP32 reference on a fixed WikiText-2 test subset. The test loads TinyLlama in each dtype, scores 200 non-empty WikiText-2 lines (excluding `=` headers), and asserts `|PPL(dtype) − PPL(FP32)| < 0.5`.
+
+Requirements:
+
+- CUDA-capable NVIDIA GPU (test skips on CPU-only hosts)
+- `transformers`, `torch`, `datasets` from `requirements.txt`
+- First run downloads the TinyLlama checkpoint and the WikiText-2 dataset
+
+Run the quantisation perplexity test:
+
+```bash
+python3 -m pytest -v tests/integration/test_quantisation.py
+```
+
+Or filter by markers:
+
+```bash
+python3 -m pytest -v tests/integration/test_quantisation.py -m "gpu and slow"
+```
+
+The repo's `tests/conftest.py` also exposes `--gpu` and `--slow` flags that select tests carrying those markers:
+
+```bash
+python3 -m pytest -v tests/integration/test_quantisation.py --gpu --slow
+```
+
+Expected output: three parametrised cases (`float32`, `float16`, `bfloat16`) all pass with PPL drift well under the 0.5 tolerance.
 
 ## CI/CD
 
