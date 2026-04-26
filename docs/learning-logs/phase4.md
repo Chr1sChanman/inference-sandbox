@@ -142,3 +142,14 @@ Drift: 0.0016, well within the 0.5 tolerance threshold.
 ```
 
 **SDET angle:** 4.3 is the **quality** companion to 4.1/4.2’s **speed** work, a gate that says “this precision path is still the same model,” not just “it runs fast.” Task evals and golden generations still belong elsewhere; PPL here catches a different failure class (math / weights / kernels) cheaply. Pytest flags --slow and --gpu behave the same as other flags but just different syntax like `pytest tests/integration/test_quantisation.py -v --slow --gpu` vs `pytest -m "integration"`. However they can be implied to mean something like `slow` indicating expensive tests like perplexity evaluation and `gpu` requiring CUDA. Flags only work if registered as custom pytest options via `pytest_addoption` and collection filtering via `pytest_collection_modifyitems` in `tests/conftest.py`.
+
+# Phase 4.4:
+
+To find model configs, there are three ways:
+    1. **Browser**: Pages like HF contain model configs through `config.json` in the tab **Files and versions**
+    2. **Using Python**: Running the python script after activating the environment:
+        `from transformers import AutoConfig`
+        `cfg = AutoConfig.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")`
+        `print(cfg)`
+    Will return the parameters of the model
+    3. **On disk after download**: For HF specifically, `config.json` caches it in the folder `~/.cache/huggingface/hub/`. However, the previous two methods are more ideal.
