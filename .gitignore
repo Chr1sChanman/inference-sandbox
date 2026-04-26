@@ -39,5 +39,6 @@ pip-wheel-metadata/
 
 # Local files/folders
 .cursor
+debug-39292b.log
 /docs/reference/NVIDIA_Phases1-3.pdf
 # /docs/reference/NVIDIA_Phases4-7.pdf
