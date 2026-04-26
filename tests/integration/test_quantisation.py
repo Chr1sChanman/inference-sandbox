@@ -87,3 +87,22 @@ def corpus_perplexity(
         "total_tokens": total_tokens,
         "sentence_count": len(samples),
     }
+
+@pytest.fixture(scope="module")
+def fp32_reference_ppl(wikitext_samples) -> float:
+    """Load FP32 once, compute reference PPL, unload. Cached for the session."""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=torch.float32)
+    model.to("cuda:0")
+    model.eval()
+
+    try:
+        result = corpus_perplexity(model, tokenizer, wikitext_samples)
+        return result["perplexity"]
+    finally:
+        del model
+        del tokenizer
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
