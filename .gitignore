@@ -37,6 +37,7 @@ pip-wheel-metadata/
 .vscode/
 .codex
 
-# Local docs
+# Local files/folders
+.cursor
 /docs/reference/NVIDIA_Phases1-3.pdf
 # /docs/reference/NVIDIA_Phases4-7.pdf
