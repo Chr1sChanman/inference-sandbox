@@ -106,3 +106,29 @@ def fp32_reference_ppl(wikitext_samples) -> float:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+
+def test_quantised_ppl_within_tolerance(
+    loaded_model,
+    fp32_reference_ppl: float,
+    wikitext_samples: list[str],
+):
+    model, tokenizer, dtype = loaded_model
+    
+    if dtype is torch.float32:
+        # FP32 "golden" baseline; assert self-consistency instead
+        result = corpus_perplexity(model, tokenizer, wikitext_samples)
+        assert math.isclose(result["perplexity"], fp32_reference_ppl, rel_tol=1e-3), (
+            f"FP32 self-consistency check failed: "
+            f"{result['perplexity']:.4f} vs reference {fp32_reference_ppl:.4f}"
+        )
+        return
+    
+    result = corpus_perplexity(model, tokenizer, wikitext_samples)
+    ppl = result["perplexity"]
+    drift = abs(ppl - fp32_reference_ppl)
+
+    assert drift < PPL_TOLERANCE, (
+        f"{dtype} PPL drift {drift:.4f} exceeds tolerance {PPL_TOLERANCE}. "
+        f"dtype PPL = {ppl:.4f}, FP32 reference = {fp32_reference_ppl:.4f}, "
+        f"tokens = {result['total_tokens']}, sentences = {result['sentence_count']}."
+    )
