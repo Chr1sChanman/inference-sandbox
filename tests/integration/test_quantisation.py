@@ -24,21 +24,21 @@ PPL_TOLERANCE = 0.5
 DTYPES_UNDER_TEST = [torch.float32, torch.float16, torch.bfloat16]
 
 @pytest.fixture(scope="module")
-def wikitext_sentences() -> list[str]:
+def wikitext_samples() -> list[str]:
     """Return exactly NUM_SAMPLES non-empty sentences from WikiText-2 test."""
     raw = load_dataset(DATASET_NAME, DATASET_CONFIG, split=DATASET_SPLIT)
-    sentences = []
+    samples = []
     for s_raw in raw["text"]:
         s = s_raw.strip()
         if s and not s.startswith("="):
-            sentences.append(s)
-        if len(sentences) == NUM_SAMPLES:
+            samples.append(s)
+        if len(samples) == NUM_SAMPLES:
             break
-    assert len(sentences) == NUM_SAMPLES, (
-        f"Expected {NUM_SAMPLES} sentences but got {len(sentences)}. "
+    assert len(samples) == NUM_SAMPLES, (
+        f"Expected {NUM_SAMPLES} samples but got {len(samples)}. "
         "WikiText-2 dataset may have changed."
     )
-    return sentences
+    return samples
 
 
 @pytest.fixture(scope="module", params=DTYPES_UNDER_TEST, ids=lambda d: str(d).replace("torch.", ""))
@@ -65,7 +65,25 @@ def loaded_model(request) -> Iterable[tuple[AutoModelForCausalLM, AutoTokenizer,
 def corpus_perplexity(
     model,
     tokenizer,
-    sentences
+    samples: list[str],
+    device: str = "cuda:0",
 ) -> dict:
     total_nll = 0.0
     total_tokens = 0
+    for sample in samples:
+        sample_input = tokenizer(sample, return_tensors="pt").to(device)
+        if sample_input["input_ids"].shape[1] < 2:
+            continue
+        outputs = model(input_ids=sample_input["input_ids"], labels=sample_input["input_ids"])
+        n_tokens = sample_input["input_ids"].shape[1] - 1
+        total_nll += outputs.loss.item() * n_tokens
+        total_tokens += n_tokens
+    avg_nll = total_nll / total_tokens
+    ppl = math.exp(avg_nll)
+
+    return {
+        "perplexity": ppl,
+        "avg_nll": avg_nll,
+        "total_tokens": total_tokens,
+        "sentence_count": len(samples),
+    }
