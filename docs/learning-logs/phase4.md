@@ -177,10 +177,10 @@ This affects the `H_kv` variable in `Bytes_per_kv_token` formula depending on wh
 - **MQA** => `H_kv=1`
 - **GQA** => `H_kv=num_key_value_heads` from config
 
-****I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer instead each transformer block. 
+****I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer inside each transformer block. 
 - Model families like LLaMA or Mistral are formulas for the full decoder like attention style, norm placement, how many layers, etc, and choose an FFN style. 
-- In Llama families, these are gated linear units with 3 heavy matrices tying **H** & **I**.
-- In the image below, `intermediate_size` corresponds to the layers pointed at by `intermediate_dim`, which is the widest or "fat" dimension in SwiGLU style blocks. 
+- In Llama class models the FFN is SwiGLU, which are three linear maps with shapes expressed in **H** & **I**. Two projects map **H**->**I**(gate & up) while one maps **I**->**H**(down), so **I** sets how wide that inner bottleneck is compared to **H**>
+- In the image below, the label `intermediate_dim` marks the inner width of the SwiGLU block, the same quantity as the variable `intermediate_size`. It is not a layer count, but the wide ("fat") dimension of the FFN.
 
-![SwiGLU Block](docs/images/SwiGLU.png)
+![SwiGLU Block](../images/SwiGLU.png)
 
