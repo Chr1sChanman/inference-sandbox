@@ -1,30 +1,59 @@
 from transformers import AutoModelForCausalLM
+import matplotlib.pyplot as plt
+from pathlib import Path
 import torch
+
 from inference_sandbox.hf_bench import BenchmarkConfig, HFBenchmark
 
-config = BenchmarkConfig(dtype=torch.float16)
-bench = HFBenchmark(config)
+PLOT_DIR = Path(__file__).resolve().parents[2] / "docs" / "vram_observer"
+PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
-bench.load_components()
+CONFIG = BenchmarkConfig(dtype=torch.float16)
+BENCH = HFBenchmark(CONFIG)
+BENCH.load_components()
 
-prompt = config.prompts[0]
+PROMPT = CONFIG.prompts[0]
+TOKEN_AMOUNTS = [128, 256, 512, 1024, 2048]
+SAMPLES = [] # one row per max_new_tokens
 
 # Measuring peak GPU tensor memory during `generate()`
-for max_new_tokens in [128, 256, 512, 1024]:
-    bench.config.max_new_tokens = max_new_tokens
-    inputs = bench.build_chat_inputs(prompt)
-    gen_kw = bench.build_generation_kwargs(inputs)
+for max_new_tokens in TOKEN_AMOUNTS:
+    BENCH.config.max_new_tokens = max_new_tokens
+    inputs = BENCH.build_chat_inputs(PROMPT)
+    gen_kw = BENCH.build_generation_kwargs(inputs)
 
     torch.cuda.synchronize()
-
     torch.cuda.reset_peak_memory_stats()
 
     with torch.no_grad():
-        bench.model.generate(**gen_kw)
+        BENCH.model.generate(**gen_kw)
     
     torch.cuda.synchronize()
-    bytes = torch.cuda.memory_allocated()
+    curr_bytes = torch.cuda.memory_allocated()
     peak_bytes = torch.cuda.max_memory_allocated()
-    # output results here
+    
+    SAMPLES.append({
+        "max_new_tokens": max_new_tokens,
+        "curr_mib": curr_bytes / (1024 ** 2),
+        "peak_mib": peak_bytes / (1024 ** 2),
+    })
+
     del gen_kw
-bench.unload_components()
+BENCH.unload_components()
+
+xs = [s["max_new_tokens"] for s in SAMPLES]
+peak = [s["peak_mib"] for s in SAMPLES]
+curr = [s["curr_mib"] for s in SAMPLES]
+fig, ax = plt.subplots(figsize=(7, 4.5), dpi=150)
+ax.plot(xs, peak, marker="o", label="peak (during generate)")
+ax.plot(xs, curr, marker="s", linestyle="--", label="current (after sync)")
+ax.set_xlabel("max_new_tokens (decode length)")
+ax.set_ylabel("VRAM (MiB)")
+ax.set_title("TinyLlama FP16 — VRAM vs sequence length (batch=1)")
+ax.grid(True, alpha=0.3)
+ax.legend()
+fig.tight_layout()
+out_path = PLOT_DIR / "vram_vs_seqlen.png"
+fig.savefig(out_path)
+plt.close(fig)
+print(f"Saved plot: {out_path}")
