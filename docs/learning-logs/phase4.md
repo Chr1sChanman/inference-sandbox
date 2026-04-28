@@ -141,7 +141,7 @@ PPL (FP32, 20 sentences): 14.1001  | Tokens: 3199
 Drift: 0.0016, well within the 0.5 tolerance threshold.
 ```
 
-**SDET angle:** 4.3 is the **quality** companion to 4.1/4.2’s **speed** work, a gate that says “this precision path is still the same model,” not just “it runs fast.” Task evals and golden generations still belong elsewhere; PPL here catches a different failure class (math / weights / kernels) cheaply. Pytest flags --slow and --gpu behave the same as other flags but just different syntax like `pytest tests/integration/test_quantisation.py -v --slow --gpu` vs `pytest -m "integration"`. However they can be implied to mean something like `slow` indicating expensive tests like perplexity evaluation and `gpu` requiring CUDA. Flags only work if registered as custom pytest options via `pytest_addoption` and collection filtering via `pytest_collection_modifyitems` in `tests/conftest.py`.
+**SDET angle:** 4.3 is the complement to 4.1/4.2’s "speed" work, a gate that says “this precision path is still the same model,” not just “it runs fast.” Task evals and golden generations still belong elsewhere; PPL here catches a different failure class (math / weights / kernels) cheaply. Pytest flags --slow and --gpu behave the same as other flags but just different syntax like `pytest tests/integration/test_quantisation.py -v --slow --gpu` vs `pytest -m "integration"`. However they can be implied to mean something like `slow` indicating expensive tests like perplexity evaluation and `gpu` requiring CUDA. Flags only work if registered as custom pytest options via `pytest_addoption` and collection filtering via `pytest_collection_modifyitems` in `tests/conftest.py`.
 
 # Phase 4.4:
 
@@ -153,3 +153,34 @@ To find model configs, there are three ways:
         `print(cfg)`
     Will return the parameters of the model
     3. **On disk after download**: For HF specifically, `config.json` caches it in the folder `~/.cache/huggingface/hub/`. However, the previous two methods are more ideal.
+
+Different `model_type`/architecture changes the layer formula, so the attention and MLP decomposition below is for Llama-class checkpoints. For unfamiliar architectures, `AutoModel.from_pretrained` + `.num_parameters()` or HF model cards validates formulas.
+
+To check `P_total`, use `sum(p.numel() for p in model.parameters())`. If that disagrees with the theoretical layer count, suspect embedding/LM-head tie, GQA mismatch, or a nonstandard MLP are usually the causes for discrepancy if the theoretical calculation does not line up.
+
+| Notation | `config.json` | TinyLlama-1.1B-Chat-v1.0 |
+|---|---|---|
+| **L** | `num_hidden_layers` | 22 |
+| **H** | `hidden_size` | 2048 |
+| **V** | `vocab_size` | 32000 |
+| **A** | `num_attention_heads` | 32 |
+| **K** | `num_key_value_heads` | 4 |
+| **I** | `intermediate_size` | 5632 |
+
+****K**(`num_key_value_heads`) has 3 distinct variations:
+- `K==A`: Full MHA (no grouping for KV)
+- `K==1`: MQA(multi-query) with 1 K and 1 V shared by all Q heads
+- `1<K<A`: Grouped-query attention (GQA) - middle ground between MHA and MQA
+
+This affects the `H_kv` variable in `Bytes_per_kv_token` formula depending on which KV group was used:
+- **Full MHA** => `H_kv=A`
+- **MQA** => `H_kv=1`
+- **GQA** => `H_kv=num_key_value_heads` from config
+
+****I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer instead each transformer block. 
+- Model families like LLaMA or Mistral are formulas for the full decoder like attention style, norm placement, how many layers, etc, and choose an FFN style. 
+- In Llama families, these are gated linear units with 3 heavy matrices tying **H** & **I**.
+- In the image below, `intermediate_size` corresponds to the layers pointed at by `intermediate_dim`, which is the widest or "fat" dimension in SwiGLU style blocks. 
+
+![SwiGLU Block](docs/images/SwiGLU.png)
+
