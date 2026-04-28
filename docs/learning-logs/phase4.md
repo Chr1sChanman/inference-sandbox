@@ -166,33 +166,34 @@ Different `model_type`/architecture changes the layer formula, so the attention 
 
 **In MHA, each query head has its own corresponding key and value head. In GQA, many query heads share fewer key/value heads. The tradeoff is slightly less flexibility, but much lower KV-cache memory use and memory bandwidth during inference, usually with only a small quality loss.
 
-| Notation | `config.json` | TinyLlama-1.1B-Chat-v1.0 |
-|---|---|---|
+| Notation | `config.json` | TinyLlama-1.1B-Chat-v1.0 | Notes |
+|---|---|---|---|
 | **L** | `num_hidden_layers` | 22 |
 | **H** | `hidden_size` | 2048 |
 | **V** | `vocab_size` | 32000 |
 | **A** | `num_attention_heads` | 32 |
-| **K** | `num_key_value_heads` | 4 |
-| **I** | `intermediate_size` | 5632 |
-| **T** | `max_position_embeddings` | <=2048 |
+| **K** | `num_key_value_heads` | 4 | [1]
+| **I** | `intermediate_size` | 5632 | [2]
+| **T** | `max_position_embeddings` | <=2048 | [3]
 
 **`use_cache` in config means KV cache matters for `generate`
-**`max_position_embeddings` is the upper bound for the range `T` can grow
 
-****K**(`num_key_value_heads`) has 3 distinct variations:
+**[1]** **K**(`num_key_value_heads`) has 3 distinct variations:
 - `K==A`: Full MHA (no grouping for KV)
 - `K==1`: MQA(multi-query) with 1 K and 1 V shared by all Q heads
 - `1<K<A`: Grouped-query attention (GQA) - middle ground between MHA and MQA
 
-****I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer inside each transformer block. 
+**[2]** **I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer inside each transformer block. 
 - Model families like LLaMA or Mistral are formulas for the full decoder like attention style, norm placement, how many layers, etc, and choose an FFN style. 
 - In Llama class models the FFN is SwiGLU, which are three linear maps with shapes expressed in **H** & **I**. Two projects map **H**->**I**(gate & up) while one maps **I**->**H**(down), so **I** sets how wide that inner bottleneck is compared to **H**>
 - In the image below, the label `intermediate_dim` marks the inner width of the SwiGLU block, the same quantity as the variable `intermediate_size`. It is not a layer count, but the wide ("fat") dimension of the FFN.
 
+**[3]** `max_position_embeddings` is the upper bound for the range `T` can grow
+
 ![SwiGLU Block Image](../images/SwiGLU.png)
 
-| Formula | Description |TinyLlama-1.1B-Chat-v1.0 |
-|---|---|---|
+| Formula | Description |TinyLlama-1.1B-Chat-v1.0 | Notes |
+|---|---|---|---|
 | **D = H / A** | Head Dimension | `2048/32=64` |
 | **P_embed = V * H** | Token Embeddings | `32000*2048=65536000` |
 | **P_q = H * (A * D)** | Query Projection | `2048*(32*64)=4194304` |
@@ -202,26 +203,35 @@ Different `model_type`/architecture changes the layer formula, so the attention 
 | **P_attn_total = P_q + P_o + P_k + P_v** | Attention module param count | `9437184` |
 | **P_mlp_total = H * I + H * I + I * H** | The three matrices shape for Llama class models | `3*2048*5632=34603008` |
 | **P_norm_layer ~= 2 * H** | Per-layer norms(RMSNorm) | `2*2048=4096` |
-| **P_layer = P_attn_total + P_mlp_total + P_norm_layer** | Per layer | `9437184+34603008+4096=44044288` |
-| **P_lm_head = V * H** | Output / LM Head | `32000*2048=65536000` |
-| **P_total ≈ P_embed + P_layer + H + P_lm_head** | Total approx parameters | `65536000+22*44044288+2048+65536000=1.10*10^9` |
-| **VRAM_weights ≈ P_total * B** | Params -> static weight VRAM | `1.10*10^9*2=2.2*10^9` |
-| **Bytes_per_kv_token ≈ L * (2) * H_kv * D * B** | How much KV-cache memor one token uses | `22*2*4*64*2=22528` |
-| **VRAM_KV ≈ N * T * Bytes_per_kv_token** |  | ` |
-| **KV_cache ≈ num_parallel * num_ctx * bytes_per_token** |  | ` |
-| **VRAM ≈ VRAM_weights + VRAM_KV + VRAM_activation_peak + allocator_overhead** |  | ` |
+| **P_layer = P_attn_total + P_mlp_total + P_norm_layer** | Per layer | `9437184+34603008+4096=44044288` | [1]
+| **P_lm_head = V * H** | Output / LM Head | `32000*2048=65536000` | [2]
+| **P_total ≈ P_embed + P_layer + H + P_lm_head** | Total approx parameters | `65536000+22*44044288+2048+65536000=1.10*10^9` | [3]
+| **VRAM_weights ≈ P_total * B** | Params -> static weight VRAM | `1.10*10^9*2=2.2*10^9` | [4]
+| **Bytes_per_kv_token ≈ L * (2) * H_kv * D * B** | How much KV-cache memor one token uses | `22*2*4*64*2=22528` | [5]
+| **VRAM_KV ≈ N * T * Bytes_per_kv_token** | KV Cache VRAM | `1*2048*22528=46137344` | [6]
+| **VRAM ≈ VRAM_weights + VRAM_KV + VRAM_activation_peak + allocator_overhead** | Total theoretical VRAM | `2.2*10^9+46137344+_+_=2.5*10^9` | [7]
 
-**Final norm if present appears before LM head, which adds another **H** param
+**[1]** Final norm if present appears before LM head, which adds another **H** param
 
-**For **Output / LM Head**:
+**[2]** For **Output / LM Head**:
 - If `tie_word_embeddings=true`, `P_lm_head=0` as embeddings and output share weights
 - If `tie_word_embeddings=false`, `P_lm_head=V*H`
 
-**The variable B is bytes per element, taken from inference dtype (2 for FP/BF16, 4 for FP32, etc)
+**[4]** The variable B is bytes per element, taken from inference dtype (2 for FP/BF16, 4 for FP32, etc)
 
-**To check `P_total`, use `sum(p.numel() for p in model.parameters())`. If that disagrees with the theoretical layer count, suspect embedding/LM-head tie, GQA mismatch, or a nonstandard MLP are usually the causes for discrepancy if the theoretical calculation does not line up.
+**[3]** To check `P_total`, use `sum(p.numel() for p in model.parameters())`. If that disagrees with the theoretical layer count, suspect embedding/LM-head tie, GQA mismatch, or a nonstandard MLP are usually the causes for discrepancy if the theoretical calculation does not line up.
 
-**The `H_kv` variable in `Bytes_per_kv_token` formula changes depending on which KV group was used:
+**[5]** The `H_kv` variable in `Bytes_per_kv_token` formula changes depending on which KV group was used:
 - **Full MHA** => `H_kv=A`
 - **MQA** => `H_kv=1`
 - **GQA** => `H_kv=num_key_value_heads` from config
+
+**[6]** `VRAM_KV ≈ N * T * Bytes_per_kv_token` <=> `KV_cache ≈ num_parallel * num_ctx * bytes_per_token` respectively where we can assume:
+- `N = batches/concurrent sequences`, adjusted in runtime settings, can default to `1`.
+- `T` occurs at upper bound for runtime context length used, which in this case is `max_position_embeddings=1`.
+
+**[7]** `VRAM_activation_peak` and `allocator_overhead` are runtime terms and not from model config, so either actual measurement or rough bounds estimation are the only possible options.
+- `VRAM_activation_peak` is scratch memory for tensors during a **forward** and **generate**, where each step allocates temp buffers depending on fused kernels and implemenation, which changes depending on software version, attention implementation, etc.
+- `allocated_overhead` is PyTorch CUDA caching allocator behavior like pools, fragmentation, alignment, etc.
+
+**SDET angle:** `weights + ideal KV` is a regressable sanity band (“OOM at load vs OOM after long `T`?”). Comparing theory to `max_memory_allocated()` during the real `generate()` separates oops wrong formulas from implementation/runtime gap worth prioritizing separately.
