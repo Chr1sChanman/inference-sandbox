@@ -145,6 +145,8 @@ Drift: 0.0016, well within the 0.5 tolerance threshold.
 
 # Phase 4.4:
 
+## Theoretical
+
 To find model configs, there are three ways:
     1. **Browser**: Pages like HF contain model configs through `config.json` in the tab **Files and versions**
     2. **Using Python**: Running the python script after activating the environment:
@@ -235,3 +237,9 @@ Different `model_type`/architecture changes the layer formula, so the attention 
 - `allocated_overhead` is PyTorch CUDA caching allocator behavior like pools, fragmentation, alignment, etc.
 
 **SDET angle:** `weights + ideal KV` is a regressable sanity band (“OOM at load vs OOM after long `T`?”). Comparing theory to `max_memory_allocated()` during the real `generate()` separates oops wrong formulas from implementation/runtime gap worth prioritizing separately.
+
+## Observation
+
+In terms of sequence length, when looking at the output from the graph below observed peak VRAM during `generate()` did not keep climbing with longer decode after max new tokens was set to 256 in this setup. 
+
+![VRAM vs Sequence Length](.../vram_observer/vram_vs_seqlen.png)
