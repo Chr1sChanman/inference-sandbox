@@ -266,4 +266,21 @@ A paged KV cache (vLLM’s PagedAttention; TRT-LLM has its own block manager) sp
 
 While we do unload the model between functions in `vram_observer.py`, it is not necessary as compared to `hf_bench.py` because with the latter, the dtype changes and so the model behavior and respective VRAM usage changes, so it is needed to establish a clean baseline whereas we stick to a constant model, and so over iteration it keeps the baseline clean through just deleting the generated kwargs and loading the next ones that differ by either token max length or batch size. So the reloading of model in this phase is by choice, as while it keeps a clean allocator baseline between the two experiments, it's not because anything carries over in `generate()` itself.
 
-Another item to note is that after noticing the `VRAM vs decode/token length` graph was plateauing after 256 tokens, I fixed it by flattening the seqlen curve in `vram_observer.py` by setting `min_new_tokens=max_new_tokens` and `eos_token_id=None`.
+Another item to note is that after noticing the `VRAM vs decode/token length` graph was plateauing after 256 tokens, I fixed it by flattening the seqlen curve in `vram_observer.py` by setting `min_new_tokens=max_new_tokens` and `eos_token_id=None`. Nvidia's article linked summarizes this phase: https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/
+
+Title:
+feat(vram_observer.py): added vram footprint measurement for KV Cache and Batch Size during Decode phase
+
+Description:
+## What
+- Added `vram_observer.py`, which verifies and measure VRAM consumption for various sizes of `max_new_token` which is token/decode/sequence length and batch size in `input_ids` and `attention_mask` to split the token length
+
+## Why
+In SDET work, validating OOM risk vs workknobs is a core task on top of regression testing like with quantisation. This is also how release QA argues capacity and not just how it outputs.
+
+## How to Test
+`python -m inference_sandbox.vram_observer.py'
+Output is then sent to **docs/vram_observer/**, graphs should mostly be linear and possible rises due to overhead/allocation
+
+## Observations
+Another item to note is that after noticing the `VRAM vs decode/token length` graph was plateauing after 256 tokens, I fixed it by flattening the seqlen curve in `vram_observer.py` by setting `min_new_tokens=max_new_tokens` and `eos_token_id=None`. https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/ goes in depth about this topic just covered, where sequence/token length and batch size are how VRAM footprint increase during the decode phase.

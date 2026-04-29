@@ -92,6 +92,60 @@ inference-sandbox/
 - `artifacts/benchmark/` and `artifacts/ollama/`
   Output folders for benchmark results and Ollama metrics.
 
+## Python imports (`inference_sandbox`)
+
+The package lives under `src/inference_sandbox/`. Python must find that layout on `sys.path` before any `import inference_sandbox` or `python -m inference_sandbox....` will work.
+
+### Option 1 — Per shell (any environment: venv, system Python, or conda)
+
+From the **repository root**:
+
+```bash
+export PYTHONPATH="$(pwd)/src${PYTHONPATH:+:$PYTHONPATH}"
+```
+
+Then run modules as usual, for example:
+
+```bash
+python -m inference_sandbox.vram_observer
+```
+
+This applies to **all** modules under `inference_sandbox` in that terminal session.
+
+### Option 2 — Conda: persist on `conda activate` (recommended for the `nvidia` env)
+
+Run once (use your real repo path):
+
+```bash
+conda activate nvidia
+conda env config vars set PYTHONPATH=/absolute/path/to/inference-sandbox/src
+```
+
+Re-activate the environment (or open a new shell), then verify:
+
+```bash
+conda activate nvidia
+python -c "import inference_sandbox; print(inference_sandbox.__file__)"
+```
+
+To unset later:
+
+```bash
+conda env config vars unset PYTHONPATH
+```
+
+### Option 3 — Non-conda venv: activate hook
+
+After `source .venv/bin/activate`, use **Option 1** in the same shell, or add `export PYTHONPATH=...` to the end of `.venv/bin/activate` (or use [direnv](https://direnv.net/) with `export PYTHONPATH="${PWD}/src"` in `.envrc`).
+
+### Quick check
+
+```bash
+PYTHONPATH=src python -c "import inference_sandbox; print('ok')"
+```
+
+(from repo root; no `export` needed for a one-off command)
+
 ## Requirements
 
 ### Core
@@ -127,17 +181,7 @@ Install the project dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
-Commands in this repo assume either:
-
-```bash
-export PYTHONPATH=src
-```
-
-or an inline equivalent such as:
-
-```bash
-PYTHONPATH=src python3 -m inference_sandbox.reverse_service
-```
+For **`PYTHONPATH`** so `import inference_sandbox` and `python -m inference_sandbox....` work, see **[Python imports (`inference_sandbox`)](#python-imports-inference_sandbox)** above (per-shell export, conda `env config vars`, or venv/direnv).
 
 ## Testing Notes
 
