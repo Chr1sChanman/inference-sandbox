@@ -36,6 +36,9 @@ The motivation or problem this solves.
 ## How to Test
 Steps to verify the change works.
 
+## Observations
+Things to note user side
+
 **List of commit types**
 feat — A new capability that didn't exist before. Adding a function, a flag, a feature. If a user/teammate would notice something new works, it's a feat.
 `feat(benchmark): add --engine flag for TRT-LLM mode`

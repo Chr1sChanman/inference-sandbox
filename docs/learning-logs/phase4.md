@@ -141,4 +141,129 @@ PPL (FP32, 20 sentences): 14.1001  | Tokens: 3199
 Drift: 0.0016, well within the 0.5 tolerance threshold.
 ```
 
-**SDET angle:** 4.3 is the **quality** companion to 4.1/4.2’s **speed** work, a gate that says “this precision path is still the same model,” not just “it runs fast.” Task evals and golden generations still belong elsewhere; PPL here catches a different failure class (math / weights / kernels) cheaply. Pytest flags --slow and --gpu behave the same as other flags but just different syntax like `pytest tests/integration/test_quantisation.py -v --slow --gpu` vs `pytest -m "integration"`. However they can be implied to mean something like `slow` indicating expensive tests like perplexity evaluation and `gpu` requiring CUDA. Flags only work if registered as custom pytest options via `pytest_addoption` and collection filtering via `pytest_collection_modifyitems` in `tests/conftest.py`.
+**SDET angle:** 4.3 is the complement to 4.1/4.2’s "speed" work, a gate that says “this precision path is still the same model,” not just “it runs fast.” Task evals and golden generations still belong elsewhere; PPL here catches a different failure class (math / weights / kernels) cheaply. Pytest flags --slow and --gpu behave the same as other flags but just different syntax like `pytest tests/integration/test_quantisation.py -v --slow --gpu` vs `pytest -m "integration"`. However they can be implied to mean something like `slow` indicating expensive tests like perplexity evaluation and `gpu` requiring CUDA. Flags only work if registered as custom pytest options via `pytest_addoption` and collection filtering via `pytest_collection_modifyitems` in `tests/conftest.py`.
+
+# Phase 4.4:
+
+## Theoretical
+
+To find model configs, there are three ways:
+    1. **Browser**: Pages like HF contain model configs through `config.json` in the tab **Files and versions**
+    2. **Using Python**: Running the python script after activating the environment:
+        `from transformers import AutoConfig`
+        `cfg = AutoConfig.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")`
+        `print(cfg)`
+    Will return the parameters of the model
+    3. **On disk after download**: For HF specifically, `config.json` caches it in the folder `~/.cache/huggingface/hub/`. However, the previous two methods are more ideal.
+
+Different `model_type`/architecture changes the layer formula, so the attention and MLP decomposition below is for Llama-class checkpoints. For unfamiliar architectures, `AutoModel.from_pretrained` + `.num_parameters()` or HF model cards validates formulas.
+
+**Query heads make a query vector q from the current token. They let the model specialize in different ways of asking questions about the context. They are also represented in model configs as the variable `num_attention_heads`.
+
+**Key heads make key vectors k for all past tokens. They help the model decide whether a past token matches the current query, typically using a score like q⋅k (usually scaled by 1/sqrt(d)).
+
+**Value heads make value vectors v for all past tokens. They provide the content that gets retrieved once the model decides where to attend.
+
+**A good way to summarize this is: query heads are readers that choose attention patterns, while KV heads are memory slots that represent the cached context those queries read from.
+
+**In MHA, each query head has its own corresponding key and value head. In GQA, many query heads share fewer key/value heads. The tradeoff is slightly less flexibility, but much lower KV-cache memory use and memory bandwidth during inference, usually with only a small quality loss.
+
+| Notation | `config.json` | TinyLlama-1.1B-Chat-v1.0 | Notes |
+|---|---|---|---|
+| **L** | `num_hidden_layers` | 22 |
+| **H** | `hidden_size` | 2048 |
+| **V** | `vocab_size` | 32000 |
+| **A** | `num_attention_heads` | 32 |
+| **K** | `num_key_value_heads` | 4 | [1]
+| **I** | `intermediate_size` | 5632 | [2]
+| **T** | `max_position_embeddings` | <=2048 | [3]
+
+**`use_cache` in config means KV cache matters for `generate`
+
+**[1]** **K**(`num_key_value_heads`) has 3 distinct variations:
+- `K==A`: Full MHA (no grouping for KV)
+- `K==1`: MQA(multi-query) with 1 K and 1 V shared by all Q heads
+- `1<K<A`: Grouped-query attention (GQA) - middle ground between MHA and MQA
+
+**[2]** **I** uses **SwiGLU blocks**, a specific pattern for the feed-forward network (FFN) sublayer inside each transformer block. 
+- Model families like LLaMA or Mistral are formulas for the full decoder like attention style, norm placement, how many layers, etc, and choose an FFN style. 
+- In Llama class models the FFN is SwiGLU, which are three linear maps with shapes expressed in **H** & **I**. Two projects map **H**->**I**(gate & up) while one maps **I**->**H**(down), so **I** sets how wide that inner bottleneck is compared to **H**>
+- In the image below, the label `intermediate_dim` marks the inner width of the SwiGLU block, the same quantity as the variable `intermediate_size`. It is not a layer count, but the wide ("fat") dimension of the FFN.
+
+**[3]** `max_position_embeddings` is the upper bound for the range `T` can grow
+
+![SwiGLU Block Image](../images/SwiGLU.png)
+
+| Formula | Description |TinyLlama-1.1B-Chat-v1.0 | Notes |
+|---|---|---|---|
+| **D = H / A** | Head Dimension | `2048/32=64` |
+| **P_embed = V * H** | Token Embeddings | `32000*2048=65536000` |
+| **P_q = H * (A * D)** | Query Projection | `2048*(32*64)=4194304` |
+| **P_o = H * (A * D)** | Output Projection | `2048*(32*64)=4194304` |
+| **P_k = H * (K * D)** | Key Projection | `2048*(4*64)=524288` |
+| **P_v = H * (K * D)** | Value Projection | `2048*(4*64)=524288` |
+| **P_attn_total = P_q + P_o + P_k + P_v** | Attention module param count | `9437184` |
+| **P_mlp_total = H * I + H * I + I * H** | The three matrices shape for Llama class models | `3*2048*5632=34603008` |
+| **P_norm_layer ~= 2 * H** | Per-layer norms(RMSNorm) | `2*2048=4096` |
+| **P_layer = P_attn_total + P_mlp_total + P_norm_layer** | Per layer | `9437184+34603008+4096=44044288` | [1]
+| **P_lm_head = V * H** | Output / LM Head | `32000*2048=65536000` | [2]
+| **P_total ≈ P_embed + P_layer + H + P_lm_head** | Total approx parameters | `65536000+22*44044288+2048+65536000=1.10*10^9` | [3]
+| **VRAM_weights ≈ P_total * B** | Params -> static weight VRAM | `1.10*10^9*2=2.2*10^9` | [4]
+| **Bytes_per_kv_token ≈ L * (2) * H_kv * D * B** | How much KV-cache memor one token uses | `22*2*4*64*2=22528` | [5]
+| **VRAM_KV ≈ N * T * Bytes_per_kv_token** | KV Cache VRAM | `1*2048*22528=46137344` | [6]
+| **VRAM ≈ VRAM_weights + VRAM_KV + VRAM_activation_peak + allocator_overhead** | Total theoretical VRAM | `2.2*10^9+46137344+_+_=2.5*10^9` | [7]
+
+**[1]** Final norm if present appears before LM head, which adds another **H** param
+
+**[2]** For **Output / LM Head**:
+- If `tie_word_embeddings=true`, `P_lm_head=0` as embeddings and output share weights
+- If `tie_word_embeddings=false`, `P_lm_head=V*H`
+
+**[4]** The variable B is bytes per element, taken from inference dtype (2 for FP/BF16, 4 for FP32, etc)
+
+**[3]** To check `P_total`, use `sum(p.numel() for p in model.parameters())`. If that disagrees with the theoretical layer count, suspect embedding/LM-head tie, GQA mismatch, or a nonstandard MLP are usually the causes for discrepancy if the theoretical calculation does not line up.
+
+**[5]** The `H_kv` variable in `Bytes_per_kv_token` formula changes depending on which KV group was used:
+- **Full MHA** => `H_kv=A`
+- **MQA** => `H_kv=1`
+- **GQA** => `H_kv=num_key_value_heads` from config
+
+**[6]** `VRAM_KV ≈ N * T * Bytes_per_kv_token` <=> `KV_cache ≈ num_parallel * num_ctx * bytes_per_token` respectively where we can assume:
+- `N = batches/concurrent sequences`, adjusted in runtime settings, can default to `1`.
+- `T` occurs at upper bound for runtime context length used, which in this case is `max_position_embeddings=2048`.
+
+**[7]** `VRAM_activation_peak` and `allocator_overhead` are runtime terms and not from model config, so either actual measurement or rough bounds estimation are the only possible options.
+- `VRAM_activation_peak` is scratch memory for tensors during a **forward** and **generate**, where each step allocates temp buffers depending on fused kernels and implemenation, which changes depending on software version, attention implementation, etc.
+- `allocated_overhead` is PyTorch CUDA caching allocator behavior like pools, fragmentation, alignment, etc.
+
+**SDET angle:** `weights + ideal KV` is a regressable sanity band (“OOM at load vs OOM after long `T`?”). Comparing theory to `max_memory_allocated()` during the real `generate()` separates oops wrong formulas from implementation/runtime gap worth prioritizing separately.
+
+## Observation
+
+- In terms of sequence length, when looking at the output from the graph below observed peak VRAM during `generate()` continued to climb in a mainly linear fashion with a slight increase in inclination the larger the token length. This is because every generated token adds an entry to the KV cache for every transformer layer. Since decoder only LLMs reuse past KV on every new step, the cache grows by roughly `2*num_layers*num_kv_heads*head_dim*bytes_per_elem` per token. 
+
+![VRAM vs Sequence Length](../vram_observer/vram_vs_seqlen.png)
+
+- In terms of batch sizes, each sequence in a batch has an independent KV cache where a different prompt has a different KV and prefill/decode activations are also scaled by batch_num, resulting in the formula for memory footprint being `per_seq_KV*batch_num+per_seq_activations*batch_num+weights`. However, my graph shows the reason why VRAM usage can different from the expected mainly linear relationship, which is due to overhead such as the PyTorch + CUDA runtime behavior at small scale. To resolve this, averaging multiple runs and adding a warmup pass would smooth the curve.
+
+![VRAM vs Batch Size](../vram_observer/vram_vs_batch.png)
+
+- Using the VRAM vs decode/token length graph and CLI output, we can calculate the slope between the peaks of token's 128 and 2048, though do note that 2048 token's `generate()` was cut off due to the architectural design of the context limit being 2048 tokens. So plugging in the numbers:
+    - Measured slope: `(2194.3 - 2135.8) MiB / (2048 - 128) tokens ≈ **0.030 MiB/token ≈ 30 KiB/token**
+        - This matches the theoretical 22 KiB/token KV + overhead/activation I calculated earlier
+    - Free VRAM after load/framework: `16384 − 2140 ≈ 14200 MiB`
+    - Total tokens: `14200 MiB / 0.030 MiB/token ≈ **~470k tokens at batch = 1**`
+OOM would only occur when scaling either **batch size** or **model size**
+
+- A naive KV cache is one contiguous tensor per sequence sized to the max possible context. That has two costs:
+    **Internal fragmentation**: short sequences still reserve full max-length space, wasting VRAM.
+    **External fragmentation**: when sequences come and go, free space is broken into unusable holes.
+A paged KV cache (vLLM’s PagedAttention; TRT-LLM has its own block manager) splits the KV cache into fixed-size blocks ("pages"), say 16 tokens each, and a per-sequence page table maps logical positions to physical blocks (just like OS virtual memory). Benefits:
+    - **No pre-reservation**: a sequence allocates only as many blocks as it currently needs.
+    - **No external fragmentation**: free pages from finished sequences are reused by new ones.
+    - **Higher batch capacity in the same VRAM**, which is the bottleneck I observed in my batch plot.
+    - **Enables prefix sharing** (multiple sequences share the same prefix blocks) **and continuous batching.**
+
+While we do unload the model between functions in `vram_observer.py`, it is not necessary as compared to `hf_bench.py` because with the latter, the dtype changes and so the model behavior and respective VRAM usage changes, so it is needed to establish a clean baseline whereas we stick to a constant model, and so over iteration it keeps the baseline clean through just deleting the generated kwargs and loading the next ones that differ by either token max length or batch size. So the reloading of model in this phase is by choice, as while it keeps a clean allocator baseline between the two experiments, it's not because anything carries over in `generate()` itself.
+
+Another item to note is that after noticing the `VRAM vs decode/token length` graph was plateauing after 256 tokens, I fixed it by flattening the seqlen curve in `vram_observer.py` by setting `min_new_tokens=max_new_tokens` and `eos_token_id=None`. Nvidia's article linked summarizes this phase: https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/
