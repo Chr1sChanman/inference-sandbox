@@ -230,7 +230,7 @@ Different `model_type`/architecture changes the layer formula, so the attention 
 
 **[6]** `VRAM_KV ≈ N * T * Bytes_per_kv_token` <=> `KV_cache ≈ num_parallel * num_ctx * bytes_per_token` respectively where we can assume:
 - `N = batches/concurrent sequences`, adjusted in runtime settings, can default to `1`.
-- `T` occurs at upper bound for runtime context length used, which in this case is `max_position_embeddings=1`.
+- `T` occurs at upper bound for runtime context length used, which in this case is `max_position_embeddings=2048`.
 
 **[7]** `VRAM_activation_peak` and `allocator_overhead` are runtime terms and not from model config, so either actual measurement or rough bounds estimation are the only possible options.
 - `VRAM_activation_peak` is scratch memory for tensors during a **forward** and **generate**, where each step allocates temp buffers depending on fused kernels and implemenation, which changes depending on software version, attention implementation, etc.
@@ -240,6 +240,30 @@ Different `model_type`/architecture changes the layer formula, so the attention 
 
 ## Observation
 
-In terms of sequence length, when looking at the output from the graph below observed peak VRAM during `generate()` did not keep climbing with longer decode after max new tokens was set to 256 in this setup. 
+- In terms of sequence length, when looking at the output from the graph below observed peak VRAM during `generate()` continued to climb in a mainly linear fashion with a slight increase in inclination the larger the token length. This is because every generated token adds an entry to the KV cache for every transformer layer. Since decoder only LLMs reuse past KV on every new step, the cache grows by roughly `2*num_layers*num_kv_heads*head_dim*bytes_per_elem` per token. 
 
-![VRAM vs Sequence Length](.../vram_observer/vram_vs_seqlen.png)
+![VRAM vs Sequence Length](../vram_observer/vram_vs_seqlen.png)
+
+- In terms of batch sizes, each sequence in a batch has an independent KV cache where a different prompt has a different KV and prefill/decode activations are also scaled by batch_num, resulting in the formula for memory footprint being `per_seq_KV*batch_num+per_seq_activations*batch_num+weights`. However, my graph shows the reason why VRAM usage can different from the expected mainly linear relationship, which is due to overhead such as the PyTorch + CUDA runtime behavior at small scale. To resolve this, averaging multiple runs and adding a warmup pass would smooth the curve.
+
+![VRAM vs Batch Size](../vram_observer/vram_vs_batch.png)
+
+- Using the VRAM vs decode/token length graph and CLI output, we can calculate the slope between the peaks of token's 128 and 2048, though do note that 2048 token's `generate()` was cut off due to the architectural design of the context limit being 2048 tokens. So plugging in the numbers:
+    - Measured slope: `(2194.3 - 2135.8) MiB / (2048 - 128) tokens ≈ **0.030 MiB/token ≈ 30 KiB/token**
+        - This matches the theoretical 22 KiB/token KV + overhead/activation I calculated earlier
+    - Free VRAM after load/framework: `16384 − 2140 ≈ 14200 MiB`
+    - Total tokens: `14200 MiB / 0.030 MiB/token ≈ **~470k tokens at batch = 1**`
+OOM would only occur when scaling either **batch size** or **model size**
+
+- A naive KV cache is one contiguous tensor per sequence sized to the max possible context. That has two costs:
+    **Internal fragmentation**: short sequences still reserve full max-length space, wasting VRAM.
+    **External fragmentation**: when sequences come and go, free space is broken into unusable holes.
+A paged KV cache (vLLM’s PagedAttention; TRT-LLM has its own block manager) splits the KV cache into fixed-size blocks ("pages"), say 16 tokens each, and a per-sequence page table maps logical positions to physical blocks (just like OS virtual memory). Benefits:
+    - **No pre-reservation**: a sequence allocates only as many blocks as it currently needs.
+    - **No external fragmentation**: free pages from finished sequences are reused by new ones.
+    - **Higher batch capacity in the same VRAM**, which is the bottleneck I observed in my batch plot.
+    - **Enables prefix sharing** (multiple sequences share the same prefix blocks) **and continuous batching.**
+
+While we do unload the model between functions in `vram_observer.py`, it is not necessary as compared to `hf_bench.py` because with the latter, the dtype changes and so the model behavior and respective VRAM usage changes, so it is needed to establish a clean baseline whereas we stick to a constant model, and so over iteration it keeps the baseline clean through just deleting the generated kwargs and loading the next ones that differ by either token max length or batch size. So the reloading of model in this phase is by choice, as while it keeps a clean allocator baseline between the two experiments, it's not because anything carries over in `generate()` itself.
+
+Another item to note is that after noticing the `VRAM vs decode/token length` graph was plateauing after 256 tokens, I fixed it by flattening the seqlen curve in `vram_observer.py` by setting `min_new_tokens=max_new_tokens` and `eos_token_id=None`.
