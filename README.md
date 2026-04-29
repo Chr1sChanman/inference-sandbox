@@ -96,7 +96,7 @@ inference-sandbox/
 
 The package lives under `src/inference_sandbox/`. Python must find that layout on `sys.path` before any `import inference_sandbox` or `python -m inference_sandbox....` will work.
 
-### Option 1 — Per shell (any environment: venv, system Python, or conda)
+### Option 1 - Per shell (any environment: venv, system Python, or conda)
 
 From the **repository root**:
 
@@ -112,7 +112,7 @@ python -m inference_sandbox.vram_observer
 
 This applies to **all** modules under `inference_sandbox` in that terminal session.
 
-### Option 2 — Conda: persist on `conda activate` (recommended for the `nvidia` env)
+### Option 2 - Conda: persist on `conda activate` (recommended for the `nvidia` env)
 
 Run once (use your real repo path):
 
@@ -134,7 +134,7 @@ To unset later:
 conda env config vars unset PYTHONPATH
 ```
 
-### Option 3 — Non-conda venv: activate hook
+### Option 3 - Non-conda venv: activate hook
 
 After `source .venv/bin/activate`, use **Option 1** in the same shell, or add `export PYTHONPATH=...` to the end of `.venv/bin/activate` (or use [direnv](https://direnv.net/) with `export PYTHONPATH="${PWD}/src"` in `.envrc`).
 
