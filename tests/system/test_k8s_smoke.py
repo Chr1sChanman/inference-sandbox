@@ -26,6 +26,7 @@ def k8s_v1():
         pytest.skip(f"Kubernetes API unreachable: {type(e).__name__}: {e}")
     return v1
 
+@pytest.mark.k8s
 def test_min_running_pods(k8s_v1):
     pods = k8s_v1.list_namespaced_pod(
         NAMESPACE, label_selector=LABEL_SELECTOR, _request_timeout=5
