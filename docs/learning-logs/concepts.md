@@ -125,3 +125,18 @@ In regards to DL QA application, it is similar to the description in the table a
 - HBM is small given the 5070 Ti's 16GB being mostly taken up by model weights
 - Once the HBM is full, prefix cache blocks get evicted to lower tiers like system RAM/Redis storage
 - That is the purpose of Redis, to be a tier below that's network addressable where mutiple worker replicas can share a prefix cache pool where multiple workers reuse the same prompts
+
+# tests/system/test_k8s_smoke.py Updates
+The file was updated to make the kubernetes probe added reusble across tests and more explicit in error handling
+
+| Aspect | Prev | Curr |
+| --- | --- | --- |
+| Result w/cluster up | Pass | Pass |
+| Result w/cluster down | Fail(after 45s of retrying) | Fail(after ~3s probe) |
+| Failure message detail | Connection traceback | Pod names and counts |
+| Suite signal-to-noise | Red meant both infra or code | Red only means code |
+| CI cost when no cluster | 45s to fail, suite red | ~3s, suite green |
+
+# Local Hosting & Ports
+
+## What is 192.168.49.2?
