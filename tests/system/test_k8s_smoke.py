@@ -21,7 +21,7 @@ def k8s_v1():
     """Fast reachability check vs default 3x retries for 45s"""
     v1 = client.CoreV1Api()
     try:
-        v1.list_namespaced(_request_timeout=3)
+        v1.list_namespace(_request_timeout=3)
     except (MaxRetryError, ApiException, OSError) as e:
         pytest.skip(f"Kubernetes API unreachable: {type(e).__name__}: {e}")
     return v1
