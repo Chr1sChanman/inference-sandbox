@@ -139,4 +139,24 @@ The file was updated to make the kubernetes probe added reusble across tests and
 
 # Local Hosting & Ports
 
-## What is 192.168.49.2?
+Further into development, there will many services running across different ports on the local machine from the remote server such as: ollama(11434), vLLM(8000), Dynamo Frontend(8000 - collision), Triton/TRT-LLM(8000/8001/8002), Redis(6379), kube-apiserver(8443), custom MCP HTTP server(9110), etc. So understanding and organizing port mapping will be important to avoid collisions and ensure the services can be accessed from the local machine.
+
+## IP Addresses Breakdown
+
+IP4 addresses are 4 bytes long, separated by dots, have a subnet mask represented by a number up to 32 bits following a slash, and a port number following a colon after the host identifier or subnet mask. Each byte is a number between 0 and 255 while the port number can range from 0 to 65535. 
+
+An example would be `XXX.XXX.XXX.XXX/XX:XXXX`, where the first three bytes are the network prefix, the last byte is the host identifier, the `/XX` is the subnet mask that notes how many leading bits are the network prefix, and the `:XXXX` is the port number. For example, `192.168.49.2/24:8080` is a valid IP4 address, where `/24` is the subnet mask of `255.255.255` that is &ed with the leading three bytes `192.168.49` to indicate the network prefix, the last byte `2` is the host identifier, and `8080` is the port number.
+
+A good analogy would be that the network prefix is the neighborhood, the host identifier is the house number, and the port number is the outlet number. This also ties into how only one device can "claim" a "house"/host, but multiple devices can "visit"/connect to the same "house"/host, with this logic being also true for the "outlet"/port but for services instead of devices.
+
+Additionally with ports there are two types: TCP and UDP. TCP is a connection-oriented protocol that ensures data is delivered in order and without errors, while UDP is a connectionless protocol that does not ensure data is delivered in order or without errors. So while services can conflict when having the same port number, they can coexist if they use different protocols.
+
+So in context with this project, the table below shows the IP4 addresses of both the local machine and remote server:
+| Name | Remote Server | Local Machine | Notes |
+| --- | --- | --- | --- |
+| localhost | 127.0.0.1/8 | <- | Loopback address where every machine has their own, used by most services via ports like: <br> Ollama(11434), VLLM(8000), Dynamo Frontend(8000 - collision), Triton/TRT-LLM(8000/8001/8002), Redis(6379), etc. |
+| LAN/Private IP | 192.168.7.183/24 | 192.168.6.91/24 | Every device on the local network has a unique IP address but can change if the device disconnects or restarts |
+| Tailscale/VPN | 100.116.71.6 | <- | Tailscale is a VPN service that allows the local machine to access the remote server where the VPN provides the private network path and the editor/IDE creates a remote SSH tunnel over that path to map the local machine to a port on the remote server's localhost. |
+| Minikube | 192.168.49.0/24 | <- | The default subnet for Minikube's docker bridge/network and Kubernetes cluster. <br> The single Kubernetes node created is a container running `kindest/node` or `k8s.gcr.io/kube-apiserver` on `192.168.49.2`, where `apiserver` listens to port `:8443` inside that container. |
+| Kubernetes | 10.96.0.0/12 | <- | The default subnet for K8s Service CIDR, used to create virtual service IPs and how they route traffic to individual pod IPs. |
+| Docker | 172.17.0.0/16 | <- | Default Docker bridge subnet that creates a bridge interface called `docker0` with IP `172.17.0.1/16`, with each container running on the aforementioned bridge getting their own uniqueIP addresses from the bridge's subnet like `172.17.0.2/16` on port `:XXXX` |
