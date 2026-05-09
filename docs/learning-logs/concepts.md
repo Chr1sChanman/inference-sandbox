@@ -1,4 +1,5 @@
 # Remote SSH
+
 When connecting to a server/device via SSH, things to keep in mind:
 **Local Machine(Client aka MacBook Pro)**
 - Only keyboard, screen, and Cursor **UI ONLY** are the only components pulled locally
@@ -103,6 +104,7 @@ flowchart TD
 ```
 
 # Redis
+
 Redis is an in-memory key-value data store used for high-speed data retrieval and caching. Because data is stored in RAM, data will be lost if the server restarts and when full uses eviction policies like LRU when limits are reached.
 
 | Use Cases | Redis Function | DL QA Application |
@@ -127,6 +129,7 @@ In regards to DL QA application, it is similar to the description in the table a
 - That is the purpose of Redis, to be a tier below that's network addressable where mutiple worker replicas can share a prefix cache pool where multiple workers reuse the same prompts
 
 # tests/system/test_k8s_smoke.py Updates
+
 The file was updated to make the kubernetes probe added reusble across tests and more explicit in error handling
 
 | Aspect | Prev | Curr |
@@ -143,13 +146,10 @@ Further into development, there will many services running across different port
 
 ## IP Addresses Breakdown
 
-IP4 addresses are 4 bytes long, separated by dots, have a subnet mask represented by a number up to 32 bits following a slash, and a port number following a colon after the host identifier or subnet mask. Each byte is a number between 0 and 255 while the port number can range from 0 to 65535. 
-
-An example would be `XXX.XXX.XXX.XXX/XX:XXXX`, where the first three bytes are the network prefix, the last byte is the host identifier, the `/XX` is the subnet mask that notes how many leading bits are the network prefix, and the `:XXXX` is the port number. For example, `192.168.49.2/24:8080` is a valid IP4 address, where `/24` is the subnet mask of `255.255.255` that is &ed with the leading three bytes `192.168.49` to indicate the network prefix, the last byte `2` is the host identifier, and `8080` is the port number.
-
-A good analogy would be that the network prefix is the neighborhood, the host identifier is the house number, and the port number is the outlet number. This also ties into how only one device can "claim" a "house"/host, but multiple devices can "visit"/connect to the same "house"/host, with this logic being also true for the "outlet"/port but for services instead of devices.
-
-Additionally with ports there are two types: TCP and UDP. TCP is a connection-oriented protocol that ensures data is delivered in order and without errors, while UDP is a connectionless protocol that does not ensure data is delivered in order or without errors. So while services can conflict when having the same port number, they can coexist if they use different protocols.
+- IP4 addresses are 4 bytes long, separated by dots, have a subnet mask represented by a number up to 32 bits following a slash, and a port number following a colon after the host identifier or subnet mask. Each byte is a number between 0 and 255 while the port number can range from 0 to 65535. 
+- An example would be `XXX.XXX.XXX.XXX/XX:XXXX`, where the first three bytes are the network prefix, the last byte is the host identifier, the `/XX` is the subnet mask that notes how many leading bits are the network prefix, and the `:XXXX` is the port number. For example, `192.168.49.2/24:8080` is a valid IP4 address, where `/24` is the subnet mask of `255.255.255` that is &ed with the leading three bytes `192.168.49` to indicate the network prefix, the last byte `2` is the host identifier, and `8080` is the port number.
+- A good analogy would be that the network prefix is the neighborhood, the host identifier is the house number, and the port number is the outlet number. This also ties into how only one device can "claim" a "house"/host, but multiple devices can "visit"/connect to the same "house"/host, with this logic being also true for the "outlet"/port but for services instead of devices.
+- Additionally with ports there are two types: TCP and UDP. TCP is a connection-oriented protocol that ensures data is delivered in order and without errors, while UDP is a connectionless protocol that does not ensure data is delivered in order or without errors. So while services can conflict when having the same port number, they can coexist if they use different protocols.
 
 So in context with this project, the table below shows the IP4 addresses of both the local machine and remote server:
 | Name | Remote Server | Local Machine | Notes |
@@ -160,3 +160,164 @@ So in context with this project, the table below shows the IP4 addresses of both
 | Minikube | 192.168.49.0/24 | <- | The default subnet for Minikube's docker bridge/network and Kubernetes cluster. <br> The single Kubernetes node created is a container running `kindest/node` or `k8s.gcr.io/kube-apiserver` on `192.168.49.2`, where `apiserver` listens to port `:8443` inside that container. |
 | Kubernetes | 10.96.0.0/12 | <- | The default subnet for K8s Service CIDR, used to create virtual service IPs and how they route traffic to individual pod IPs. |
 | Docker | 172.17.0.0/16 | <- | Default Docker bridge subnet that creates a bridge interface called `docker0` with IP `172.17.0.1/16`, with each container running on the aforementioned bridge getting their own uniqueIP addresses from the bridge's subnet like `172.17.0.2/16` on port `:XXXX` |
+
+# More Kubernetes Concepts
+
+A good way to understand Kubernetes is to:
+- Frame it from `Running a process on a machine` to `Describing a system and K8s creates it, keeps it running, and self-heals it` for example:
+    - Traditional: `python server.py --port 8000`
+    - Kubernetes:
+        - Deployment: "Keep 3 copies of this container running"
+        - Service: "Give them one stable internal IP address"
+        - Pod/NodePort/Port-Forward: "Make them reachable from outside"
+- Learn how networking and ports work in the context of Kubernetes and Docker.
+- The layers of abstraction:
+    - Container: The actual process running the code, like `python server.py --port 8000`
+    - Pod: A group of containers that share the same network namespace, like `python server.py --port 8000` and `python server.py --port 8001`
+    - Service: A stable network endpoint that routes traffic to whichever pods match its label selector, like `python server.py --port 8000` and `python server.py --port 8001`
+    Node: The physical or virtual machine that runs the containers, like `192.168.49.2`
+    Cluster: A group of nodes that run the containers, like `192.168.49.0/24`
+    External Access: The ability to reach the containers from outside the cluster, like `192.168.49.2:8000`
+- The tools and their roles:
+    - Kubernetes: the actual system/API that manages pods, services, deployments, etc.
+    - kubectl: CLI client for talking to the Kubernetes API.
+    - Minikube: tool for creating/running a small local Kubernetes cluster.
+    - Direct API/config: talking to Kubernetes without kubectl, usually via raw YAML/API calls or control-plane config.
+
+In terms of accessing it from the "outside", you can utilize one of the three methods depending on use case:
+
+| Access Method | Description | Use Case |
+| --- | --- | --- |
+| `kubectl port-forward service/service-name local-port:service-port` | Forwards localhost:N -> pod:M over the `apiserver` | Single pod/service, ad hoc testing, development |
+| `kubectl proxy` | Localhost HTTP proxy to the `apiserver` | Tools that talk to the API directly like `kubectl` or `curl` |
+| `minikube tunnel` | Allocates real LoadBalancer IPs on the host | Need external access to services like NodePort, LoadBalancer, etc. |
+
+Note that for this project at its current state, these access methods are not needed as `tests/system/test_k8s_smoke.py` already uses the Kubernetes Python client to talk to the `apiserver` directly via `~/.kube/config` which already knows the IP address. Access matter more for workload testing and production deployments.
+
+# SSH/Remote Connection Details
+
+SSH/Remote connections are used to connect the local machine to the remote server, where the file `~/.ssh/config` is created on the local machine to configure the SSH connection details to the remote server.
+Quick list of commands in regards to SSH/Remote connections:
+
+## Local Machine Commands
+
+- `ssh gpubox` to connect to the remote server via interactive shell
+    - the -N flag is used to specify tunnel only
+- Cursor's `Remote-SSH: Connect to Host` to connect via editor/IDE
+- `curl http://localhost:XXXX` to check what is actually listening on the local machine's port
+- `ssh -O check gpubox` to check if the connection is still alive
+- `ssh -O exit gpubox` to close the connection
+- Cursor's `Remote-SSH: Close Connection` to close the connection via editor/IDE
+- `lsof -nP -iTCP:XXXX -sTCP:LISTEN` to check what is actually listening on the local machine's port
+    - `-n` shows numerical addresses and ports
+    - `-p` shows the process that is listening
+    - `-iTCP:XXXX` shows the port number
+    - `-sTCP:LISTEN` shows the listening sockets
+    - You can also add `| grep E ':XXXX|:XXXX|...'` to filter by the exact port number
+
+## Remote Server Commands
+- `ss -lntp` to check what is actually listening on the remote server's port
+    - `-l` lists listening sockets
+    - `-n` shows numerical addresses and ports
+    - `-t` shows TCP sockets
+    - `-p` shows the process that is listening
+    - You can also add `| grep E ':XXXX|:XXXX|...'` to filter by the exact port number
+
+
+## SSH Connection File
+
+**For this project the SSH connection file is configured with the following details:**
+
+### Host Configuration
+`Host gpubox`
+- Defines shortcut name for the remote server 
+- Prevents from having to type the full SSH command like `ssh cchan@100.116.71.6`
+
+`    HostName 100.116.71.6`
+- The IP address of the remote server or VPN like Tailscale used in this case
+
+`    User cchan`
+- Username on the remote server used to log in as
+
+`    IdentityFile ~/.ssh/id_ed25519_gpubox`
+- The private SSH key used on the local machine to authenticate with the remote server
+
+`    IdentitiesOnly yes`
+- Only uses the private key above for authentication
+
+`    ServerAliveInterval 30  # detect dead links in 30s instead of 2 mins`
+- Sends a small keepalive message every 30s instead of the default 2 mins
+- Detects dead connections after sleep, Wi-Fi changes, or network drops
+
+`    ServerAliveCountMax 3`
+- If 3 keepalive checks fail, SSH considers connection dead and exits
+- 30s * 3 = 90s before SSH exits
+
+`    ExitOnForwardFailure yes    # fail loud if port alr taken`
+- **IMPORTANT**: SSH fails immediately if a local port forward specified in config is already taken
+
+`    TCPKeepAlive yes`
+- Use TCP-level keep alive packets to keep the connection alive
+- Lower level and secondary to `ServerAliveInterval` for detecting dead connections
+
+`    ControlMaster auto  # multiplex connections using a single socket`
+- Enables SSH to reuse existing connections to the remote server
+- Allows a second `ssh gpubox` to use an already established connection with a prior `ssh gpubox` instead of making a new one
+- Recommend for faster repeat connections to the remote server
+
+`    ControlPath ~/.ssh/cm-%r@%h:%p`
+- Where the SSH stores the control socket for multiplexing connections
+- The placeholders mean:
+    - `%r`: remote username, cchan
+    - `%h`: remote hostname, 100.116.71.6
+    - `%p`: SSH port, usually 22
+- So translated, the control socket is stored in `~/.ssh/cm-cchan@100.116.71.6:22`
+
+`    ControlPersist 10m`
+- Keeps the master connection alive for 10 mins after the last SSH session ends
+- Enables reconnects to be faster by reusing the existing connection
+
+### Inference Services/Ports Forwarding
+- The general format of port forwarding is <local-machine-port> <remote-server-address>:<remote-server-port>
+
+`    LocalForward 11435 127.0.0.1:11434`
+- Forwards localhost:11435 -> remote:11434
+- Used for port forwarding the local machine's `11435` port to listen to the ollama inference service running on the remote server's `11434` port
+
+`    LocalForward 8000 127.0.0.1:8000`
+- Forwards localhost:8000 -> remote:8000
+- The primary/active inference service port
+- Only one of vLLM, Dynamo Frontend, or TRT-LLM can be active at a time
+
+`    LocalForward 8001 127.0.0.1:8001`
+- Forwards localhost:8001 -> remote:8001
+- The secondary inference service port if primary is not available
+- Used for a second inference engine, Triton gRPC, or another service
+
+`    LocalForward 8002 127.0.0.1:8002`
+- Forwards localhost:8002 -> remote:8002
+- The tertiary inference service port if primary and secondary are not available
+- Used for a third inference engine, Triton gRPC, or another service
+
+`    LocalForward 9100 127.0.0.1:9100`
+- Forwards localhost:9100 -> remote:9100
+- Used for a custom MCP HTTP server
+
+### Infrastructure/Ports Forwarding
+
+`    LocalForward 6379 127.0.0.1:6379`
+- Forwards localhost:6379 -> remote:6379
+- Used for the Redis service
+
+`    LocalForward 8443 127.0.0.1:8443`
+- Forwards localhost:8443 -> remote:8443
+- Only used if the remote server is listening on that IP address
+- Usually the default IP for Minikube's API server is `192.168.49.2` and so is usually never needed
+
+### Notes
+- Some config lines can randomly be purple, this is just a visual indicator that the line is a comment
+- In regards to the three port forwards for inference services, these are the possible combinations used for this project:
+    - Primary (Remote engine A): vLLM / Dynamo Frontend / TRT-LLM
+    - Secondary (Remote engine B): Dynamo Frontend / TRT-LLM
+    - Tertiary (Remote metrics/secondary): Triton Metrics
+
