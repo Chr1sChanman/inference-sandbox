@@ -22,3 +22,17 @@ def k8s_v1():
     except (MaxRetryError, ApiException, OSError) as e:
         pytest.skip(f"Kubernetes API unreachable: {type(e).__name__}: {e}")
     return v1
+
+@pytest.fixture(scope="session")
+def vllm_url() -> str:
+    """vLLM endpoint or skip if vLLM is not running."""
+    import httpx, os
+
+    url = os.environ.get("VLLM_URL", "http://127.0.0.1:8000")
+
+    try:
+        httpx.get(f"{url}/v1/models", timeout=2).raise_for_status()
+    except Exception as e:
+        pytest.skip(f"vLLM not reachable at {url}: {e!s}")
+
+    return url

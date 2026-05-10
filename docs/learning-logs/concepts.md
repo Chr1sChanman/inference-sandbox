@@ -388,3 +388,17 @@ tests/
     system/
         conftest.py # k8s_v1
 ```
+- Current example runs:
+    - `pytest -m "not gpu and not k8s"` -> laptop, no infra
+    - `pytest -m "gpu and not slow"` -> quick gpu sweep and skip slow marked tests
+    - `pytest -m k8s` -> cluster smoke test in CI
+- There are three types of "wrong" test outcomes, expected failure (xfail - @pytest.mark.xfail), failure (fail - @pytest.mark.fail), and error (error - @pytest.mark.error) that are utilized when the scenario is known to not succeed.
+- Sometimes xfail will be used to skip tests and keep the CI green, but only as a last resort
+
+| Scenario | Outcome |
+| --- | --- |
+| Prereq missing | skip |
+| Known bug, tracked, and will be fixed | xfail w/reason + ticket link |
+| Test dependance on flaky external service | skip + open issue to remove test |
+| The item the test exsists to verify is broken | fail + open issue to fix |
+| Unexpected runtime error | error + open issue to fix |
