@@ -1,11 +1,10 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v"
+addopts = "--strict-markers -ra"
 markers = [
-  "integration: requires Ollama, local models, and NVIDIA GPU access",
+  "integration: requires a local service (ollama/vllm/redis)",
   "k8s: requires a reachable Kubernetes cluster",
-  "system: requires Kubernetes cluster access",
   "slow: takes more than a few seconds (perplexity, large corporation)",
   "gpu: requires CUDA-capable GPU",
 ]
