@@ -321,3 +321,34 @@ Quick list of commands in regards to SSH/Remote connections:
     - Secondary (Remote engine B): Dynamo Frontend / TRT-LLM
     - Tertiary (Remote metrics/secondary): Triton Metrics
 
+# Autossh & Tmux
+
+- When working with remote servers, it is useful to keep services and terminals running in the background to avoid having to restart them, especially when working with long-running or continuous processes such as but not limited to:
+    - `vllm serve ...`
+    - `docker run ...`
+    - `python benchmark.py --long-run`
+    - `nvidia-smi dmon`
+    - `pytest -m gpu`
+- This is where autossh and tmux come into play where:
+    - tmux on gpubox keeps the services/tests alive on the remote server
+    - autossh on the local machine keeps the localhost port forwards connected to the gpubox ports as long as device is not fully "shut down"
+
+## Tmux
+
+- Tmux is a terminal multiplexer that basically "moves" the local session terminal to a persistent session on the remote server that can be re-attached after actions that would usually disconnect the user if the session was non-persistent and local like laptop sleep after closing lid or a few minutes of inactivity
+- This is one of the main purposes of tmux, and while other tools do exist like `screen` and `nohup`, tmux is the most ideal in this case due to its flexibility and features
+- Tmux is ran after connecting to the remote server to "move" and make it into a persistent session from the local terminal
+- So the function of tmux in this case and in general in relation back to the summary point of `Autossh & Tmux` is to fulfill keeping the long-running/continuous services or tests running the background to avoid having to restart them by keeping that terminal/session alive and re-attachable
+
+## Autossh
+
+- Autossh is a "monitoring" tool that "watches" the SSH connection using the config, in this case `~/.ssh/config` for `gpubox`, and reconnects automatically ONLY if the connection is briefly lost or dies like Wi-Fi changes and network drops.
+- However, it will always disconnect if the device fully "shuts down" like full sleep or rebooting
+- The main purpose is to prevent having to restart the ssh "instructions" via `ssh -N gpubox` after brief disconnects, where it essentially runs the ssh command instead of the user manually doing so
+- So if the device does fully "shut down", the user will need to manually restart autossh via `autossh -M 0 -N gpubox` to re-establish the auto connection
+    - `-M 0`: disables the multiplexing feature
+    - `-N` disables the pseudo-terminal and makes it tunnel only
+    - `-N` can be replaced with `-f` to run in the background
+    - The image below shows the correct output when running `autossh -M 0 -N gpubox`
+![autossh -M 0 -N gpubox](../images/autossh.png)
+- Another way it is used in this case is to keep the ssh port forwarding "instructions" from the ssh alive in a second tmux session in case the primary tmux session is locally lost or disconnected, basically keeping the `LocalForward` rules active and a dedicated SSH connection running those forward instruction via the secondary tmux session
