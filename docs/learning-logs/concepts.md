@@ -367,3 +367,24 @@ Quick list of commands in regards to SSH/Remote connections:
     -o "ExitOnForwardFailure=yes" \
     cchan@100.116.71.6
     ```
+
+# Test Coverage
+
+| Tier | Speed budget | External Deps | CI Run Occurances |
+| --- | --- | --- | --- |
+| Unit | <100ms each | None | Every push/PRs/MRs |
+| Integration | <5s each | Local services on ports | PRs/MRs to main |
+| System | <60s each | Minikube cluster, GPU, Models | Nightly + pre-release |
+
+- For test configs each tier should have their own conftest that contains their fixtures and markers like tests/system/conftest.py for the system tier
+For example:
+```bash
+tests/
+    conftest.py # global pytest, config/hooks only
+    unit/
+        conftest.py # optional, empty for now
+    integration/
+        conftest.py # ollama_url, vllm_url
+    system/
+        conftest.py # k8s_v1
+```
