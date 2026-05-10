@@ -332,6 +332,11 @@ Quick list of commands in regards to SSH/Remote connections:
 - This is where autossh and tmux come into play where:
     - tmux on gpubox keeps the services/tests alive on the remote server
     - autossh on the local machine keeps the localhost port forwards connected to the gpubox ports as long as device is not fully "shut down"
+- Example using port `8000`:
+    - vLLM running in the remote tmux:
+        - `gpubox:8000` stays alive even if the local machine disconnects
+    - autossh running on local machine:
+        - local machine `localhost:8000` forwards to `gpubox:8000` as long as the device is not fully "shut down"
 
 ## Tmux
 
@@ -352,3 +357,13 @@ Quick list of commands in regards to SSH/Remote connections:
     - The image below shows the correct output when running `autossh -M 0 -N gpubox`
 ![autossh -M 0 -N gpubox](../images/autossh.png)
 - Another way it is used in this case is to keep the ssh port forwarding "instructions" from the ssh alive in a second tmux session in case the primary tmux session is locally lost or disconnected, basically keeping the `LocalForward` rules active and a dedicated SSH connection running those forward instruction via the secondary tmux session
+- If a `~/.ssh/config` file has not yet been created, the user can either create the config and run the previous command or manually type out the config like below:
+    ```bash
+    autossh -M 0 -N \
+    -i ~/.ssh/id_ed25519_gpu \
+    -o "IdentitiesOnly=yes" \
+    -o "ServerAliveInterval=30" \
+    -o "ServerAliveCountMax=3" \
+    -o "ExitOnForwardFailure=yes" \
+    cchan@100.116.71.6
+    ```
