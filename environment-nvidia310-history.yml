@@ -1,0 +1,8 @@
+name: nvidia
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+variables:
+  PYTHONPATH: /home/cchan/code/inference-sandbox/src
+prefix: /home/cchan/miniforge3/envs/nvidia
