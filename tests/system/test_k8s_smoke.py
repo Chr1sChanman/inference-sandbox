@@ -6,6 +6,7 @@ NAMESPACE = "default"
 LABEL_SELECTOR = "app=inference-sandbox"
 MIN_RUNNING_PODS = 2
 
+@pytest.mark.system
 @pytest.mark.k8s
 def test_min_running_pods(k8s_v1):
     pods = k8s_v1.list_namespaced_pod(
