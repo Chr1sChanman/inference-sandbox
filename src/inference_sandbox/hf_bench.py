@@ -455,8 +455,18 @@ def print_dtype_comparison_table(results: list[dict]) -> None:
             f"{row['throughput_tokens_per_s']:<10.4f}"
         )
 
-def create_redis_client() -> redis.Redis:
-        return redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, decode_responses=True)
+def create_redis_client(
+    host: str | None = None,
+    port: int | None = None,
+) -> redis.Redis:
+    redis_host = host or os.getenv("REDIS_HOST", "127.0.0.1")
+    redis_port = port if port is not None else int(os.getenv("REDIS_PORT", "6379"))
+
+    return redis.Redis(
+        host=redis_host,
+        port=redis_port,
+        decode_responses=True,
+    )
 
 def save_results_to_redis(client: redis.Redis, results: list[dict], key: str = HF_RESULTS_KEY) -> None:
         payload = {
@@ -484,6 +494,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run local Hugging Face GPU benchmarks for TinyLlama."
     )
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--compare-dtypes",
@@ -495,25 +506,75 @@ def main() -> None:
         action="store_true",
         help="Print saved Hugging Face benchmark results from Redis.",
     )
+    group.add_argument(
+        "--redis-ping",
+        action="store_true",
+        help="Ping Redis and exit without loading a model.",
+    )
+
+    parser.add_argument(
+        "--redis-host",
+        default=os.getenv("REDIS_HOST", "127.0.0.1"),
+        help="Redis host. Defaults to REDIS_HOST or 127.0.0.1.",
+    )
+    parser.add_argument(
+        "--redis-port",
+        type=int,
+        default=int(os.getenv("REDIS_PORT", "6379")),
+        help="Redis port. Defaults to REDIS_PORT or 6379.",
+    )
+    parser.add_argument(
+        "--redis-key",
+        default=os.getenv("HF_RESULTS_KEY", HF_RESULTS_KEY),
+        help=f"Redis list key for benchmark results. Defaults to {HF_RESULTS_KEY}.",
+    )
+    parser.add_argument(
+        "--model-name",
+        default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        help="Hugging Face model ID to benchmark.",
+    )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=100,
+        help="Maximum generated tokens per prompt.",
+    )
+    parser.add_argument(
+        "--gpu-index",
+        type=int,
+        default=0,
+        help="CUDA GPU index to use.",
+    )
+
     args = parser.parse_args()
 
-    base_config = BenchmarkConfig()
+    base_config = BenchmarkConfig(
+        model_name=args.model_name,
+        gpu_index=args.gpu_index,
+        max_new_tokens=args.max_new_tokens,
+    )
+
+    if args.redis_ping:
+        client = create_redis_client(args.redis_host, args.redis_port)
+        if client.ping():
+            print(f"Redis OK at {args.redis_host}:{args.redis_port}")
+        return
 
     if args.compare_dtypes:
         results = run_dtype_comparison(base_config)
         print_dtype_comparison_table(results)
 
-        client = create_redis_client()
-        save_results_to_redis(client, results)
+        client = create_redis_client(args.redis_host, args.redis_port)
+        save_results_to_redis(client, results, key=args.redis_key)
 
-        print(f"\nSaved dtype comparison to Redis key: {HF_RESULTS_KEY}")
+        print(f"\nSaved dtype comparison to Redis key: {args.redis_key}")
         return
-    
+
     if args.dump_results:
-        client = create_redis_client()
-        dump_results_from_redis(client)
+        client = create_redis_client(args.redis_host, args.redis_port)
+        dump_results_from_redis(client, key=args.redis_key)
         return
-    
+
     benchmark = HFBenchmark(base_config)
     benchmark.print_environment_summary()
     result = benchmark.run_full_benchmark()

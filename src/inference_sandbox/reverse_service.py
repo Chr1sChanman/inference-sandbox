@@ -77,22 +77,39 @@ def load_json(path: FilePath) -> list:
 
 
 def main():
-    """Argument parser for Redis result dumping."""
+    """Argument parser for Redis result dumping and local service."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--dump-results", action="store_true")
     parser.add_argument("--serve", action="store_true")
+    parser.add_argument(
+        "--host",
+        default=os.getenv("REVERSE_SERVICE_HOST", "127.0.0.1"),
+        help="Host interface to bind. Use 127.0.0.1 for SSH-forwarded local dev.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("REVERSE_SERVICE_PORT", "18080")),
+        help="Port for the reverse service.",
+    )
     args = parser.parse_args()
 
     if args.serve:
-        uvicorn.run(app, host="0.0.0.0", port=8080)
+        uvicorn.run(app, host=args.host, port=args.port)
         return
-    client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, decode_responses=True)
+
+    client = redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", "6379")),
+        decode_responses=True,
+    )
 
     if args.dump_results:
         results = cast(list[str], client.lrange("benchmark:results", 0, -1))
         for result in results:
             print(json.loads(result))
         return
+
     results = []
     inputs = [
         "hi",
@@ -110,6 +127,7 @@ def main():
             f"{result['output']:<50} "
             f"{result['duration_ms']:<15.4f}"
         )
+
     BENCHMARK_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     save_csv(results, BENCHMARK_OUTPUT_DIR / "results.csv")
     save_json(results, BENCHMARK_OUTPUT_DIR / "results.json")
