@@ -1,12 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inference-sandbox"
+version = "0.1.0"
+description = "Local deep-learning infrastructure and inference SDET sandbox"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v"
+addopts = "--strict-markers -ra -v"
 markers = [
-  "integration: requires Ollama, local models, and NVIDIA GPU access",
-  "system: requires Kubernetes cluster access",
-  "slow: takes more than a few seconds (perplexity, large corporation)",
-  "gpu: requires CUDA-capable GPU",
+    "integration: requires Ollama, local models, services, or NVIDIA GPU access",
+    "system: requires Kubernetes cluster access",
+    "k8s: requires a reachable Kubernetes cluster",
+    "slow: takes more than a few seconds",
+    "gpu: requires CUDA-capable GPU",
 ]
 
 [tool.ruff]
