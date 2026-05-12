@@ -46,8 +46,8 @@
 # Agents/Subagents: Role-Based Instructions
 
 - Agents are the main interaction point in Cursor, where the user chats or prompts the agents with a question or task
-- Examples of agents are the different modes Cursor provides in the agent window such as `Agent`, `Plan`, `Ask`, `Debug`, and `Multitask`
-- Subagents are the specialized agents that Agents can use to delgate tasks to, where each subagent has its own context window, handles specific work, and returns the result to the Agent
+- Examples of agents are the different UI modes Cursor provides in the agent window such as `Agent`, `Plan`, `Ask`, `Debug`, and `Multitask` and are NOT stored in `.cursor/agents/`
+- Subagents are the specialized agents that Agents can use to delegate tasks to, where each subagent has its own context window, handles specific work, and returns the result to the Agent
 - Subagents are stored in the `.cursor/agents/` directory, where they are named like `cuda-reviewer.md`
 - Subagents should not be a workflow checklist like skills such as `/verify-import`, but like a specialized reviewer invoked after file edits such as:
     - `src/inference_sandbox/inference/torch_baseline.py`
