@@ -38,6 +38,7 @@ pip-wheel-metadata/
 .codex
 
 # Local files/folders
-.cursor
 debug-39292b.log
+settings.json
 /archived/
+/.cursor/plans/
