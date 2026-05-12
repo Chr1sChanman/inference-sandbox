@@ -15,7 +15,7 @@ PROMPTS = [
     "Give a simple example of Python list slicing.",
 ]
 
-APP_ROOT = Path(__file__).resolve().parents[2]
+APP_ROOT = Path(__file__).resolve().parents[3]
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(APP_ROOT / "artifacts")))
 OUTPUT_PATH = ARTIFACTS_DIR / "ollama" / "ollama_results.jsonl"
 

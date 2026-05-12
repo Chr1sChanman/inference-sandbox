@@ -22,11 +22,11 @@ Procedure:
    - If this fails, run `python -m pip install -e .` from the repo root.
 
 3. Confirm benchmark entry point.
-   - Prefer the Edition 3 benchmark module:
-     `python -m inference_sandbox.bench.serving --help`
-   - If that module does not exist yet, do not hallucinate it.
-   - Instead, report that `src/inference_sandbox/bench/serving.py` still needs to be created.
-   - If older benchmark scripts exist, list them but ask before substituting them.
+   - Hugging Face / TinyLlama driver (present in repo):
+     `python -m inference_sandbox.bench.hf_bench --help`
+   - Ollama driver:
+     `python -m inference_sandbox.bench.ollama_bench --help` (script may run without a formal argparse `--help`; inspect the module if needed).
+   - If a future `inference_sandbox.bench.serving` module is added, prefer it for OpenAI-compatible serving benches; until then, do not assume `serving.py` exists.
 
 4. Use explicit benchmark parameters.
    - Default engine name: `vllm`.
@@ -42,7 +42,8 @@ Procedure:
    - If the endpoint is down, report it clearly and do not treat it as a code failure.
 
 6. Run the benchmark.
-   - Preferred command shape:
+   - For the in-repo HF benchmark, use `hf_bench` flags from `--help` (engine/URL options apply to future serving drivers, not necessarily to `hf_bench`).
+   - Example shape once a serving module exists:
 
    ```bash
    python -m inference_sandbox.bench.serving \

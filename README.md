@@ -9,10 +9,17 @@ inference-sandbox/
   src/
     inference_sandbox/
       __init__.py
-      reverse_service.py
-      ollama_bench.py
-      hf_bench.py
-      perplexity.py
+      reverse_service.py  # Phase 1/2 Artifact
+      bench/
+        __init__.py
+        hf_bench.py
+        ollama_bench.py
+      eval/
+        __init__.py
+        perplexity.py
+      perf/
+        __init__.py
+        vram_observer.py
   tests/
     conftest.py
     unit/
@@ -61,11 +68,11 @@ inference-sandbox/
 
 - `src/inference_sandbox/reverse_service.py`
   Contains the string-reversal benchmark logic, CSV/JSON persistence helpers, Redis result publishing, and the FastAPI `/infer` endpoint.
-- `src/inference_sandbox/ollama_bench.py`
+- `src/inference_sandbox/bench/ollama_bench.py`
   Runs local Ollama benchmarks and writes model timing and VRAM metrics to `artifacts/ollama/ollama_results.jsonl`.
-- `src/inference_sandbox/hf_bench.py`
+- `src/inference_sandbox/bench/hf_bench.py`
   Hugging Face benchmark for TinyLlama with TTFT via `TextIteratorStreamer`, throughput, VRAM, and a dtype comparison (FP32/FP16/BF16) with optional Redis storage.
-- `src/inference_sandbox/perplexity.py`
+- `src/inference_sandbox/eval/perplexity.py`
   `corpus_perplexity()` helper that computes token-weighted mean NLL over a list of samples and returns perplexity (`exp(mean NLL)`).
 - `tests/unit/test_reverse_service.py`
   Unit tests for benchmark output correctness and CSV/JSON round-tripping.
@@ -107,7 +114,7 @@ export PYTHONPATH="$(pwd)/src${PYTHONPATH:+:$PYTHONPATH}"
 Then run modules as usual, for example:
 
 ```bash
-python -m inference_sandbox.vram_observer
+python -m inference_sandbox.perf.vram_observer
 ```
 
 This applies to **all** modules under `inference_sandbox` in that terminal session.
@@ -412,7 +419,7 @@ ollama stop qwen3:8b
 Run the Ollama benchmark:
 
 ```bash
-PYTHONPATH=src python3 -m inference_sandbox.ollama_bench
+PYTHONPATH=src python3 -m inference_sandbox.bench.ollama_bench
 ```
 
 Run the Ollama integration tests:
