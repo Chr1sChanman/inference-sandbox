@@ -78,3 +78,164 @@
 - Cursor is primarily an agent based editor that runs on the local machine, reads `general.mdc` as its project identity rule, and is suited more for file-based tasks or complex workflows.
 - The main limitation of Cursor is that since it cannot run on the remote server through `tmux`, it cannot persist if the remote server is disconnected or restarted, through long running services or tests can be still kept alive through `tmux`.
 - Therefore, when determining which tool to use, consider if the task is long running or not, and if it is, utilize Claude Code to ensure it does not get disconnected or restarted.
+
+# Tools and MCPs
+
+- Model Context Protocols (MCPs) are the external tools beyond the standard agent tools like reading, editing, and running files or terminal commands.
+    - Examples of MCP actions are:
+        - "create GitHub issue"
+        - "search Hugging Face models"
+        - "query a database"
+        - "read GPU telemetry"
+        - "search the web in a specific way"
+- The term MCP itself refers to the protocol for connecting to and interacting with the external tool/data source.
+- MCPs support tools, prompts, resources, root, elicitation, and app-like UI responses as well as `stdio`, `SSE`, and Streamable `HTTP` transports.
+- MCPs are stored in `.cursor/mcp.json` as the project-level tool registry like for `inference_sandbox`, while `~/.cursor/mcp.json` is the global file for private/global tools or credentials that don't want to be tied with the project/repository.
+
+## MCP JSON Format
+
+- The top-level shape of the MCP JSON is always:
+```json
+{
+    "mcpServers": {
+        "<mcp-server-user-chosenname>": {
+            "<...server-config-fields...>": "<...>",
+        }
+    }
+}
+```
+
+- There are two main "types" of MCPs:
+
+### `command`
+
+- A `command` MCP instructs Cursor to launch as a local subprocess and communicate with it over `stdin` and `stdout`.
+```json
+{
+    "mcpServers": {
+        "brave-search": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+            "env": {
+                "BRAVE_SEARCH_API_KEY": "<your-api-key>"
+            }
+        }
+    }
+}
+```
+- This basically tells Cursor:
+    - Start this process: `npx -y @modelcontextprotocol/server-brave-search`
+    - Pass this environment variable: `BRAVE_SEARCH_API_KEY=<value-from-shell>`
+- Cursor then talks to that subprocess over `stdio` which stands for "standard input/output".
+- In `stdio` MCPs, the client launches the MCP server as a subprocess, the MCP server reads `JSON-RPC` from `stdin` and writes `JSON-RPC` responses to `stdout`.
+- **Use `command` when the MCP server is a local/package script, for example:**
+```json
+{
+    "command": "python",
+    "args": ["${workspaceFolder}/tools/gpu_mcp.py"]
+}
+```
+- A.k.a.:
+    - Start this process: `python ${workspaceFolder}/tools/gpu_mcp.py`
+    - The `workspaceFolder` is the root of the project, which is the `inference-sandbox` repository in this case.
+```json
+{
+    "command": "docker",
+    "args": ["run", "--rm", "-i", "some-mcp-image"]
+}
+```
+- A.k.a.:
+    - Start this process: `docker run --rm -i some-mcp-image`
+    - The `some-mcp-image` is an image that implements the MCP server.
+
+### `url`
+
+- A `url` MCP tells Cursor to not start the server, but to connect to one that is already running.
+```json
+{
+    "mcpServers": {
+        "huggingface": {
+            "url": "https://huggingface.co/mcp",
+            "type": "http"
+        }
+    }
+}
+```
+- This basically tells Cursor:
+    - Do not launch a process, but connect to this endpoint instead: `https://huggingface.co/mcp`
+- Remote MCP servers use `HTTP`/`SSE` style communication/transport, where the MCP spec's Streamable `HTTP` transport uses HTTP `POST` and `GET` requests to the MCP server, where it then streams back the server-sent events (SSE) to the client.
+- **Use `url` in the following conditions:**
+    - Hosted MCP services like `https://huggingface.co/mcp`
+    - Local HTTP MCP servers like `http://localhost:9110`
+    - Remote GPU helper servers like `nvidia-smi` or `nvtop`
+    - Tools running instead Docker or on another machine like `http://gpubox:9110`
+- For example in this project, `gpu-tools` is a `url` type because the MCP server is running on the remote Ubuntu server, exposed through port `9110`, where Cursor connects it over to the forwarded `localhost` port `9110` on the local machine.
+```json
+{
+    "mcpServers": {
+        "gpu-tools": {
+            "url": "http://localhost:9110/sse",
+        }
+    }
+}
+```
+
+### General Fields
+
+**Below are the general fields that are used most frequently:**
+- `mcpServers`: The required top-level field that contains the MCP servers for the project
+- `<mcp-server-user-chosenname>`: The user-chosen name for the MCP server, which is used to identify the MCP server in the MCP JSON
+- `<type>`: The transport style of the MCP server, which can be listed in the following ways:
+    - `"command": "<command-name>"` + `"args": ["<arg1>", "<arg2>", ...]`: Local stdio server
+    - `"type": "stdio"`: Explicitly command-based stdio
+        - One thing to note is that using the fields `command` and `args` is equivalent to using the `stdio` field
+        - Cursor can *usually* infer the `type` from the `command` and `url` field, but is better to be explicit using the `type` field
+    - `"url": "<url-of-the-mcp-server>"`: Remote/local HTTP or SSE server
+    - `"type": "http"`: Explicitly Streamable HTTP-style server
+    - `"type": "sse"`: Explicitly SSE endpoint
+- `"command": "<command-name>"`: The executable Cursor/agent to run, for example:
+    - `"command": "npx"`: Run a package script like `npx -y @modelcontextprotocol/server-brave-search`
+    - `"command": "python"`: Run a Python script like `python ${workspaceFolder}/tools/gpu_mcp.py`
+    - `"command": "docker"`: Run a Docker container like `docker run --rm -i some-mcp-image`
+- `"args": ["<arg1>", "<arg2>", ...]`: An array of CLI arguments such as:
+    - `"args": ["-y", "@modelcontextprotocol/server-brave-search"]`
+    - When paired with `"command": "npx"` this is equivalent to running `npx -y @modelcontextprotocol/server-brave-search`
+- `"env": { "<env-var-name>": "<env-var-value>" }`: An object of environment variables to pass to the subprocess, for example:
+    - `"env": { "GITHUB_TOKEN": "${env:GITHUB_TOKEN}" }`
+    - This does not hardcode the token, just reads it from environment and passes it to the MCP subprocess
+- `"envFile": "<path-to-env-file>"`: A file of environment variables, only for `stdio` MCPs and not HTTP/SSE, for example:
+    - `"envFile": "${workspaceFolder}/.env"`
+    - This reads the environment variables from the `.env` file in the root of the project
+- `"url": "<url-of-the-mcp-server>"`: HTTP/SSE endpoint for connecting to an already running MCP server and not launching one, for example:
+    - `"url": "http://127.0.0.1:9110/sse"`
+    - This connects to the MCP server running on the local machine on port `9110`
+- `"headers": { "<header-name>": "<header-value>" }`: HTTP headers for remote servers
+    - `"headers": { "Authorization": "Bearer ${env:MY_SERVICE_TOKEN}"}"`
+    - Remote-server equivalent of passing secrets through environment variables to the MCP subprocess, whereas command-based MCPs like `stdio` use `env`, URL-based MCPs like `url` use `headers` or OAuth config
+- `"auth": { "<auth-type>": "<auth-value>" }`: The other method for passing secrets like OAuth static client credentials used by `url` MCPs, for example:
+```json
+"auth": {
+    "CLIENT_ID": "${env:CLIENT_ID}",
+    "CLIENT_SECRET": "${env:CLIENT_SECRET}"
+    "scopes": ["read", "write"]
+}
+```
+
+### TLDR
+
+**In terms of MCP examples for this project:**
+| Name | Connection Type | Reason |
+| --- | --- | --- |
+| `github` | launches `npx ...` | Local Node MCP package |
+| `huggingface` | connects to URL | Hosted HTTP MCP service |
+| `brave-search` | launches `npx ...` | Local Node MCP package that needs API key |
+| `gpu-tools` | connects to localhost URL | Custom server already running on remote server |
+
+**In terms of general fields:**
+- `command`: Cursor/agent starts the MCP server as a subprocess
+- `url`: Cursor/agent connects to an already running MCP server
+- `env`: Secrets/config for command-based MCPs like `stdio`
+- `headers`/`auth`: Secrets/config for URL-based MCPs like `url`
+- `type`: Explicitly sets transport style of the MCP server
+- `args`: CLI arguments for the MCP server
+
