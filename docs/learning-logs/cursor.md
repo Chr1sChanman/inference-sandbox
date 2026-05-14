@@ -239,3 +239,91 @@
 - `type`: Explicitly sets transport style of the MCP server
 - `args`: CLI arguments for the MCP server
 
+# Hooks
+
+- Hooks are scripts around the agent loop that let you `observe`, `block`, or `modify` agent behavior before or after specific events
+- Cursor describes them as spawned processes that communication via JSON over `stdio` and can run before or after the following agent stages:
+    - Shell execution
+    - MCP execution
+    - File edits
+    - Prompt submission
+    - Context compaction
+    - Agent stop
+- Hooks are basically additional agent/AI guardrails similar to the options in settings that require manual confirmation for actions like running a destructive command or searching the web
+- Hooks are written in bash scripts, and **for a file to be considered a bash script, it must have the shebang `#!/usr/bin/env bash` at the top of the file, and the file must have the executable permission `chmod +x <file-name>.sh`**
+    - An example of a bash script being activated: `chmod +x .cursor/hooks/audit-mcp.sh` when in the parent directory which in this case is `~/code/inference-sandbox`
+- Hooks are stored in two places, the main project file `.cursor/hooks.json` where all hooks are listed, and the per-hook scripts in `.cursor/hooks/`, where the repository for this project looks like:
+```
+.cursor/
+    hooks.json
+    hooks/
+        block-destructive.sh
+        format-python.sh
+        quick-tests.sh
+        audit-mcp.sh
+```
+- While the `.cursor/hooks.json` file looks like:
+```json
+{
+    "version": "1.0.0",
+    "hooks": {
+        "beforeShellExecution": [
+            {
+                "command": ".cursor/hooks/block-destructive.sh",
+                "timeout": 5,
+                "failClosed": true
+            }
+        ],
+        "afterFileEdit": [
+            {
+                "command": ".cursor/hooks/format-python.sh",
+                "timeout": 20
+            }
+        ],
+        "stop": [
+            {
+                "command": ".cursor/hooks/quick-tests.sh",
+                "timeout": 180
+            }
+        ],
+        "beforeMCPExecution": [
+            {
+                "command": ".cursor/hooks/audit-mcp.sh",
+                "timeout": 5
+            }
+        ]
+    }
+}
+```
+- In regards to the purpose of each hook:
+    - `beforeShellExecution`: Runs before the agent execuites a terminal command, blocking dangerous ones like `rm -rf` or `git push -f` to prevent accidental data loss or unauthorized changes
+        - Cursor has a built in setting/hook for this called "Block destructive commands," so adding this hook would just be an extra layer of protection
+    - `afterFileEdit`: Runs after Cursor edits a file, where for this project `ruff format` should be used to catch sloppy formatting before diff is reached
+    - `stop`: Runs when the agent finishes, where for this project `pytest` should be used to run the tests and check if the code is still working
+        - Not meant to replace CI, but to immediately catch regressions or breakages from the edit
+        - `|| true` is used to prevent the script from trapping the agent in an endless failure loop while still showing the error message to the user
+            - Could later be made stricter by returning a follow-up message to the agent or by failing closed for certain checks
+    - `beforeMCPExecution`: Runs before the agent executes a MCP request, to prevent accidental actions like touching Github data, posting comments, or calling remote services
+        - Read-only tools are usually ran automatically, but any write or modify action like creating issues or posting comments should need manual confirmation
+
+In regards to the parameters of each hook:
+    - `timeout`: The maximum time in seconds that the hook can run before it is killed
+    - `failClosed`: A boolean that determines if the hook should fail the agent if it exceeds the timeout
+    - `command`: The path to the hook script, which is relative to the `.cursor/hooks/` directory
+
+## General Rules For When To Use Hooks
+
+| Rule | Reason |
+| --- | --- |
+| Project hooks for repo policy | `.cursor/hooks.json` can be committed and shared across all team members |
+| User hooks for personal preferences | `~/.cursor/hooks.json` is omitted from the project repo and is not required by the specific project |
+| Keeping hooks fast and simple | Complex/slow hooks makes agents more inconvenient to use and should be more delegated to subagents, skills, or CI/CD |
+| Use `failClosed: true` only for safety-critical checks | A formatter failing should not block |
+| Read JSON from `stdin` | Current command-base hooks are processed as JSON `stdin`/`stdout` |
+| Do not treat hooks as perfect security | Like skills or reviewers, hooks reduce mistakes, and do not replace manual review, permissions, or CI/CD |
+
+- Additionally, Cursor distinguishes between different hook types:
+    - **Agent hooks**: Apply during Agent-Chat/Cmd-K actions, used to block dangerious MCP/CLI actions, format agent edits, run quick tests, log sessions, and add session context
+    - **Tab hooks**: Applies during inline autocomplete or Tab behavior and should be used lightly like preventing `Tab` from reading secrets and formatting small `Tab` completions without slowing down typing
+    - **App Lifecycle hooks**: Apply outside of agent sessions and mainly during workspace opens or folder changes. Used for workspace setup, plugin installations, logging, or warnings if a wrong folder/config is utilized
+    - **Session Lifecycle hooks**: A subset of Agent hooks using conditions like `sessionStart`, `sessionEnd`, and `preCompact`. Used to inject project or other relevant context at session start, log session completion, and warn before session is compacted
