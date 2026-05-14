@@ -1,0 +1,17 @@
+---
+description: Documentation lookup policy for inference-sandbox
+alwaysApply: true
+---
+
+When modifying code or docs involving PyTorch, vLLM, TensorRT-LLM, Dynamo, CUDA, NeMo, or Hugging Face APIs:
+
+- Prefer the project’s indexed Cursor Docs when available:
+  - PyTorch: @pytorch-stable
+  - vLLM: @vllm-stable
+  - TensorRT-LLM: @tensorrt-llm
+  - Dynamo: @nvidia-dynamo
+- Do not invent API names from memory.
+- Before using a Python symbol, verify it in the active `nvidia` environment with:
+  `python -c "from <module> import <symbol>; help(<symbol>)"`
+- If docs and installed package disagree, trust the installed package and note the version mismatch.
+- For benchmark code, report p50/p95/p99, not only means.

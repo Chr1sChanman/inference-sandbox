@@ -352,3 +352,34 @@ outputs/
 checkpoints/
 results/*.jsonl
 ```
+
+## Docs
+
+- **@Docs** are a special mention feature that allows the user to directly link documentation for a library or package, which reduces the need for the agent to search the web and also prevents hallucination or outdated information from being used, which is very common for libraries in the AI/ML space.
+- There are two ways to mention docs:
+    - **@Docs <library-name>**: Used in the agent chat or prompt to link the documentation, this is ideal for libraries not frequently used or was in consideration long term
+    - **Adding a @Docs link through Cursor Settings -> Features -> Docs -> Add Docs Link**: Ideal for libraries frequently used or planned to be used to keep context up to date
+        - After adding the link, you are also able to name the link for easier identification and usage in the future.
+- So in regards to this project, the following are @Docs links being added through Cursor Settings due to their frequency and known relevancy:
+    - `pytorch-stable` -> `PyTorch docs`
+    - `tensorrt-llm` -> `TensorRT-LLM docs`
+    - `vllm-stable` -> `vLLM docs`
+    - `nvidia-dynamo` -> `NVIDIA Dynamo docs`
+- Also adding a persistent rule to reference existing @Docs links in Cursor's settings if the library/package is referenced in the prompt is a good way to instill a "habit" for the agent in using the docs and verifying via terminal rather than hallucinating or referencing outdated information.
+    - However, as of the current version, it seems that @Docs links in rules are inconsistent compared to @ files, so the safe workflow should still be: **rule/verification for policy, explicit @Docs for context/prompting**
+
+- The pattern for @Docs:
+    - Rule says: “use docs when touching these systems.”
+    - Prompt says: “use @vllm-stable now.”
+    - Terminal proves: “this import exists in my env.”
+- And prompts should look like this format:
+```
+Using @vllm-stable and @pytorch-stable, implement the vLLM benchmark driver from Edition 3 §1.3.
+
+Before coding:
+- Inspect pyproject.toml
+- Confirm httpx is installed
+- Verify the relevant vLLM/OpenAI-compatible endpoint assumptions
+- Do not hardcode port 8000; use --engine-url
+- Add tests that skip cleanly when the service is absent
+```
