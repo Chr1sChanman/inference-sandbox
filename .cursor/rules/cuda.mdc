@@ -1,0 +1,15 @@
+---
+description: CUDA/PyTorch timing and GPU inference conventions
+globs:
+  - "src/inference_sandbox/**/*.py"
+  - "tests/system/**/*.py"
+alwaysApply: false
+---
+
+- Assert `torch.cuda.is_available()` in GPU entry points and log `torch.cuda.get_device_name(0)`.
+- Use `torch.cuda.synchronize()` before and after timed GPU regions.
+- Prefer `torch.cuda.Event` for kernel-level timing; `time.perf_counter()` is okay for end-to-end request timing.
+- Report p50/p95/p99 latency, not only mean.
+- Track TTFT and TPOT separately for LLM serving benchmarks.
+- Avoid hidden CPU fallback. Check model/device placement explicitly.
+- Mark tests that require a real GPU with `@pytest.mark.gpu`.

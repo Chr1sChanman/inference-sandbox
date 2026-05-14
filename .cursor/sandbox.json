@@ -1,0 +1,17 @@
+{
+    "networkPolicy": {
+      "default": "deny",
+      "allow": [
+        "pypi.org",
+        "files.pythonhosted.org",
+        "download.pytorch.org",
+        "developer.download.nvidia.com",
+        "pypi.nvidia.com",
+        "nvcr.io",
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "github.com",
+        "api.github.com"
+      ]
+    }
+}

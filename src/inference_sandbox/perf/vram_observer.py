@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import torch
 
-from inference_sandbox.hf_bench import BenchmarkConfig, HFBenchmark
+from inference_sandbox.bench.hf_bench import BenchmarkConfig, HFBenchmark
 
-PLOT_DIR = Path(__file__).resolve().parents[2] / "docs" / "vram_observer"
+PLOT_DIR = Path(__file__).resolve().parents[3] / "docs" / "vram_observer"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 CONFIG = BenchmarkConfig(dtype=torch.float16)

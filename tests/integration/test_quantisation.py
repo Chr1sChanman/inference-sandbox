@@ -9,7 +9,7 @@ import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from inference_sandbox.perplexity import corpus_perplexity
+from inference_sandbox.eval.perplexity import corpus_perplexity
 
 pytestmark = [
     pytest.mark.gpu,

@@ -1,0 +1,48 @@
+---
+description: inference-sandbox project conventions
+alwaysApply: true
+---
+
+- Stack: Python 3.11, conda env `nvidia`, src layout, pyproject.toml, pytest.
+- Hardware target: RTX 5070 Ti / Blackwell sm_120. Observed local stack, when verified: PyTorch 2.11.0+cu130, CUDA 13.1. Re-check with `python -c "import torch; print(torch.__version__, torch.version.cuda)"` before relying on version-specific behavior.
+- Source code lives under `src/inference_sandbox/`.
+- Tests live under `tests/unit/`, `tests/integration/`, and `tests/system/`.
+- Keep importable library code separate from CLI scripts and one-off experiments.
+- Use `httpx` for HTTP clients; do not introduce `requests`.
+- Mark GPU tests with `@pytest.mark.gpu`, Kubernetes tests with `@pytest.mark.k8s`, integration tests with `@pytest.mark.integration`, and slow tests with `@pytest.mark.slow`.
+- Never call `.cuda()` directly; use device-agnostic `.to(device)`.
+- For timing GPU work, use `torch.cuda.synchronize()` around timed regions.
+- Use raw Transformers/PyTorch for correctness baselines, vLLM for OpenAI-compatible serving baselines, and TensorRT-LLM for NVIDIA performance comparisons.
+- Cite or verify package versions when proposing API calls. Prefer `python -c`, `pip show <pkg>`, or `python -m pip show <pkg>` before relying on unfamiliar APIs.
+- Style: type hints compatible with Python 3.11, Google-style docstrings for public functions, small modules, and ruff-formatted code.
+
+## Hugging Face Transformers API
+
+This project pins a version of `transformers` where `dtype=` is the correct
+argument to `from_pretrained()`. `torch_dtype=` is deprecated and emits a
+warning.
+
+When loading Hugging Face causal language models, prefer:
+
+```python
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    dtype=torch.float16,
+)
+```
+
+Do not use:
+
+```python
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    torch_dtype=torch.float16,
+)
+```
+
+Before changing model-loading code, verify the installed version with:
+
+```bash
+python -m pip show transformers
+python -c "from transformers import AutoModelForCausalLM; help(AutoModelForCausalLM.from_pretrained)"
+```

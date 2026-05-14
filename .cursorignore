@@ -1,0 +1,12 @@
+data/
+*.pt
+*.bin
+*.safetensors
+*.onnx
+*.engine
+*.plan
+wandb/
+mlruns/
+outputs/
+checkpoints/
+results/*.jsonl

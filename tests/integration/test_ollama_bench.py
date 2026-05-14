@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from inference_sandbox.ollama_bench import run_one_prompt, stop_model
+from inference_sandbox.bench.ollama_bench import run_one_prompt, stop_model
 
 pytestmark = [
     pytest.mark.integration,
