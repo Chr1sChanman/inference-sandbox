@@ -327,3 +327,28 @@ In regards to the parameters of each hook:
     - **Tab hooks**: Applies during inline autocomplete or Tab behavior and should be used lightly like preventing `Tab` from reading secrets and formatting small `Tab` completions without slowing down typing
     - **App Lifecycle hooks**: Apply outside of agent sessions and mainly during workspace opens or folder changes. Used for workspace setup, plugin installations, logging, or warnings if a wrong folder/config is utilized
     - **Session Lifecycle hooks**: A subset of Agent hooks using conditions like `sessionStart`, `sessionEnd`, and `preCompact`. Used to inject project or other relevant context at session start, log session completion, and warn before session is compacted
+
+# Indexing and Docs
+
+- Context is a key component in enabling Agents to perform their tasks accurately and efficiently, so understanding how Cursor indexes context is important
+
+## Indexing
+
+- While Cursor accesses information/files through a variety of methods and sources such as semantic searching, Cursor's tuned `grep` functionality, Agent/Tab/Inline Edits, and `@` mentions for on demand index focusing, a way to make Cursor more accurate is through using `.cursorignore` to prevent certain files from wasting context.
+    - However, terminal and MCP server tools are not blocked by `.cursorignore`, so it is important to be aware of this limitation when using it.
+- `.cursorignore` is located in the root of the project, which in this case is `~/code/inference-sandbox`
+- In the case of this project, these are the files `.cursorignore` lists as a majority are files pertaining to experiemnts and model parameters that can needlessly waste context:
+```cursorignore
+data/
+*.pt
+*.bin
+*.safetensors
+*.onnx
+*.engine
+*.plan
+wandb/
+mlruns/
+outputs/
+checkpoints/
+results/*.jsonl
+```
