@@ -383,3 +383,42 @@ Before coding:
 - Do not hardcode port 8000; use --engine-url
 - Add tests that skip cleanly when the service is absent
 ```
+
+# Network
+
+- When working with agents, it is important to contain its non-deterministic behavior by scoping the behavior to defined boundaries and areas, with one way being **where the agent and its tooling are allowed to connect/operate**
+- There are multiple levels of network access, but the main three are:
+    - Cursor/User-wide Allowlist: Located in `Cursor Settings` -> `Agents` -> `Auto-Run` -> `Fetch Domain Allowlist`, this allows Cursor's agent to automatically fetch domains without manual approval.
+    - `~/.cursor/permissions.json`: Located in the home directory, this controls network access for sandbox policies across all projects/repositories like `inference-sandbox`
+    - `.cursor/sandbox.json`: Project/repository-level specific sandbox policies for network access via terminal commands
+- Network access level is controlled by the `Auto-Run Network Access` setting in the `Auto-Run` section of the `Agents` tab in Cursor Settings, which can be set to:
+    - `allow all`: Agent can access any domain
+    - `allow list`: Agent can only access domains in the allow list
+    - `allow list with defaults`: Agent can access domains in the allow list and default domains
+- In regards to this project, a practical allowlist should include but not be limited to the following:
+    - `pypi.org` for installing dependencies
+    - `files.pythonhosted.org` for downloading packages
+    - `download.pytorch.org` for downloading PyTorch
+    - `developer.download.nvidia.com` for downloading NVIDIA drivers
+    - `pypi.nvidia.com` for downloading NVIDIA packages
+    - `nvcr.io` for downloading NVIDIA images
+    - `huggingface.co` for downloading models
+    - `cdn-lfs.huggingface.co` for downloading model files
+    - `github.com` for cloning repositories
+    - `api.github.com` for interacting with GitHub APIs
+- There are three levels of network access:
+| Mode | Description | Use Case |
+| --- | --- | --- |
+| User config only | Only domains you explicitly allow | High-control corporate setup |
+| User config w/defaults | Cursor defaults + your allowlist | Personal projects |
+| Allow all | Agent can access any domain | Avoid unless debugging |
+
+## Remote SSH Split Note
+
+- Components and settings are split between local machine and remote server such as:
+    - Local machine: Cursor UI, web search, GitHub MCP, some Cursor-sided settings
+    - Remote server: Terminal, `pip install`, `docker pull`, `huggingface-cli download`, `vllm serve`, etc.
+- This causes secrets to be split like Local-sided credentials for the local machine and network access for the remote server such as:
+    - Local machine: GITHUB_TOKEN, BRAVE_API_KEY, Cursor account/session
+    - Remote server: HF_TOKEN, NGC / nvcr.io docker login, pip/uv cache, CUDA/PyTorch environment
+- Because of this, it is important to be aware when adding or modifying secrets to ensure they are not leaked or misplaced, such as putting said Hugging Face or GitHub tokens directly in `.cursor/mcp.json`, where they ideally should be used via environment variables or a local/global config.
