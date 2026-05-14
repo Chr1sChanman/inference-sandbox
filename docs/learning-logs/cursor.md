@@ -422,3 +422,88 @@ Before coding:
     - Local machine: GITHUB_TOKEN, BRAVE_API_KEY, Cursor account/session
     - Remote server: HF_TOKEN, NGC / nvcr.io docker login, pip/uv cache, CUDA/PyTorch environment
 - Because of this, it is important to be aware when adding or modifying secrets to ensure they are not leaked or misplaced, such as putting said Hugging Face or GitHub tokens directly in `.cursor/mcp.json`, where they ideally should be used via environment variables or a local/global config.
+    - A good frame of mind is just avoiding putting secrets in `.cursor/mcp.json` whenever possible and placing them in dedicated files like `.env`
+
+# Beta Features, Marketplace, and Web Dashboard
+
+- For this project, Cursor edition will stay on stable but may add certain MCPs, plugins, and features like Bugbot. The main focus however is the core logic of the repo for the internship.
+
+## Marketplace / Plugins
+
+- Cursor plugins are bundles that can package rules, skills, agents, commands, MCP servers, and hooks into a single package for easy installation and sharing. The marketplace is where official plugins are published and installed, with plugins themselves being able to be scoped at user or project levels
+- So Plugins != UI extensions, where they may add the following in each agent feature:
+    - `Rules`: Persistent instructions for the agent to follow
+    - `Skills`: Procedural workflows
+    - `Agents/Subagents`: Specialized agents/subagents for specific tasks
+    - `Commands`: Executable agent commands
+    - `MCP Tools`: External service access for the agent to use
+    - `Hooks`: Scripts that run before or after specific actions/events
+
+## Bugbot
+
+- Cursor's PR/MR review bot that analyzes diffs, leaves comments with explanations and suggestions for fixes, run PR/MR updates automatically or manually when triggered, and can publish GitHub checks named `Cursor Bugbot`.
+- It can also use project-specific `.cursor/BUGBOT.md` files to customize its behavior and review context, similar to `CLAUDE.md` for Claude Code.
+- In general, the order of testing implementation into a project is:
+    1. Fast local tests via `pytest` 
+    2. Github/Gitlab CI/CD checks for longer running tests
+    3. Automation of tests via `hooks`
+    4. Bugbot via `.cursor/BUGBOT.md` with project specific review rules
+    5. Autofix implementation into Bugbot
+- An example of a `.cursor/BUGBOT.md` file:
+```
+# Bugbot review rules for inference-sandbox
+
+Focus on:
+- tests missing markers: gpu, k8s, integration, slow
+- CUDA timing without torch.cuda.synchronize()
+- direct .cuda() calls instead of .to(device)
+- benchmark code that reports mean only instead of p50/p95/p99
+- system tests that fail when infra is absent instead of skipping
+- hardcoded localhost:8000 when --engine-url should be used
+
+Do not block on:
+- missing GPU tests for pure unit-test changes
+- benchmark result drift unless the PR changes inference or perf code
+```
+
+## Installed MCP Servers vs Plugin MCP Servers
+
+- **Installed MCP Servers** are servers directly added through Cursor's MCP config system via:
+    - `.cursor/mcp.json`
+    - `~/.cursor/mcp.json`
+    - The `New MCP Server` button in Cursor Settings
+    - VSCode/Cursor extensions that register MCP servers
+        - For example, `GitLens` registers `extension-GitKraken` as an Installed MCP Server upon adding the extension
+- **Plugin MCP Servers** are servers that come from the Cursor Plugins Marketplace/System, and are not managed via raw JSON like Installed MCP Servers
+    - To remove a Plugin MCP Server, simply uninstall or disable the plugin, not edit `mcp.json`
+    - Note that GitLab's MCP server cannot be used for this project as it requires a paid plan
+
+## Other Notes
+
+- The scenarios of when to use certain features is as listed:
+    - `Cursor Agent`: For local edits and fast tests
+    - `Bugbot`: Utilized after CI is stable
+    - `Autofix`: Off by default, not used at personal scale
+    - `Cloud Agents`: Off during GPU-heavy Phase 4
+        - May be used later for docs/refactors that do not need GPU
+
+- **What NOT to commit:**
+    - `.env` 
+    - tokens
+    - API keys
+    - `~/.cursor/mcp.json`
+    - `~/.cursor/hooks.json`
+        - The reason why it is so bad is because they run bash/shell commands and *can* potentially contain tokens or important information
+        - However, in the case of this project, there is nothing of importance and thus can be committed
+    - Hugging Face cache
+    - NGC credentials
+    - Model weights
+
+- **TLDR Summary of All Features**
+    - `MCPs` gives the agent "hands"
+    - `Hooks` give the agent guardrails
+    - `.cursorignore` controls what the agent sees
+    - `@Docs` controls what the agent knows
+    - `Network settings` control what the agent can access without permission
+    - `Marketplace/Dashboard` controls which extra systems the agent can use
+    - `CI` remains the final test/guardrail
