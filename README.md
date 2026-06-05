@@ -487,4 +487,4 @@ The GitLab pipeline currently does three main things:
 
 ## Future Plans
 
-- Implement dynamo to see acceleration benefits
+- Implement dynamo to see acceleration benefits 
