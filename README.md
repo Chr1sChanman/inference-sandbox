@@ -484,3 +484,7 @@ The GitLab pipeline currently does three main things:
 - `artifacts/benchmark/results.csv`
 - `artifacts/benchmark/results.json`
 - `artifacts/ollama/ollama_results.jsonl`
+
+## Future Plans
+
+- Implement dynamo to see acceleration benefits
